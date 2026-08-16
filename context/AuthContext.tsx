@@ -73,8 +73,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    const cleanEmail = email.trim().toLowerCase();
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: cleanEmail,
       password,
     });
     if (!error && data?.user) {
@@ -84,8 +85,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
+    const cleanEmail = email.trim().toLowerCase();
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: cleanEmail,
       password,
       options: {
         data: {
