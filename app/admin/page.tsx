@@ -15,8 +15,10 @@ interface RealOrder {
   customer_phone: string;
   customer_email: string;
   customer_address: string;
-  total_price: number;
-  status: string;
+  total_amount?: number;
+  total_price?: number;
+  status?: string;
+  payment_status?: string;
   items: any[];
   created_at: string;
 }
@@ -926,7 +928,7 @@ export default function AdminDashboardPage() {
                                   </div>
                                 </td>
                                 <td style={{ padding: '0.85rem 0.5rem', fontWeight: 800, color: 'var(--color-primary)', fontSize: '0.95rem' }}>
-                                  {formatVND(o.total_price || 0)}
+                                  {formatVND(o.total_amount || o.total_price || 0)}
                                 </td>
                                 <td style={{ padding: '0.85rem 0.5rem' }}>
                                   <select

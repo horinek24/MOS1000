@@ -59,6 +59,7 @@ export default function CheckoutPage() {
         customer_address: formData.address || 'Chưa cung cấp',
         payment_method: formData.paymentMethod,
         payment_status: 'pending',
+        status: 'Mới',
         total_amount: totalPrice,
         notes: formData.notes || null,
         items: cart.map((item) => ({
