@@ -1,79 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { useAuth } from '@/context/AuthContext';
 import { useCourses } from '@/context/CoursesContext';
-import { createClient } from '@/utils/supabase/client';
-import { Course, formatVND } from '@/data/courses';
 
 export default function MyCoursesPage() {
   const { user, isLoading: authLoading } = useAuth();
-  const { courses } = useCourses();
-  const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const supabase = createClient();
+  const { courses, enrolledCourseIds, isLoading: coursesLoading } = useCourses();
 
-  useEffect(() => {
-    async function fetchEnrolledCourses() {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        // Fetch orders by user email
-        const { data: orders, error } = await supabase
-          .from('orders')
-          .select('id, items, created_at, payment_status')
-          .eq('customer_email', user.email);
-
-        if (error) {
-          console.error('Error fetching user orders:', error);
-        }
-
-        const courseIdsSet = new Set<string>();
-
-        if (orders && orders.length > 0) {
-          orders.forEach((order: any) => {
-            if (Array.isArray(order.items)) {
-              order.items.forEach((item: any) => {
-                if (item.course_id) {
-                  courseIdsSet.add(item.course_id);
-                }
-              });
-            }
-          });
-        }
-
-        // If user has enrolled courses in DB, filter matching courses
-        let userCourses: Course[] = [];
-        if (courseIdsSet.size > 0) {
-          userCourses = courses.filter((c) => courseIdsSet.has(c.id));
-        }
-
-        // If no orders yet, fall back to default demo enrolled courses or empty array
-        if (userCourses.length === 0) {
-          // Demo fallbacks so new logged in user sees sample active courses
-          userCourses = courses.slice(0, 2);
-        }
-
-        setEnrolledCourses(userCourses);
-      } catch (err) {
-        console.error('Error loading enrolled courses:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (!authLoading) {
-      fetchEnrolledCourses();
-    }
-  }, [user, authLoading, courses]);
-
-  if (authLoading || loading) {
+  if (authLoading || coursesLoading) {
     return <div style={{ padding: '5rem', textAlign: 'center', fontSize: '1.1rem' }}>Đang tải danh sách khóa học của bạn...</div>;
   }
 
@@ -100,6 +37,9 @@ export default function MyCoursesPage() {
       </>
     );
   }
+
+  // Strictly filter only courses that match enrolledCourseIds (no fallback demo courses)
+  const enrolledCourses = courses.filter((c) => enrolledCourseIds.includes(c.id));
 
   return (
     <>
@@ -155,14 +95,14 @@ export default function MyCoursesPage() {
                         {course.desc}
                       </p>
 
-                      {/* Progress Bar Demo */}
+                      {/* Progress Bar set to 0% because no lessons are completed yet */}
                       <div style={{ marginBottom: '1.25rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
                           <span>Tiến trình hoàn thành:</span>
-                          <span style={{ color: 'var(--color-primary)' }}>45%</span>
+                          <span style={{ color: 'var(--color-primary)' }}>0%</span>
                         </div>
                         <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                          <div style={{ width: '45%', height: '100%', backgroundColor: 'var(--color-primary)' }} />
+                          <div style={{ width: '0%', height: '100%', backgroundColor: 'var(--color-primary)' }} />
                         </div>
                       </div>
                     </div>

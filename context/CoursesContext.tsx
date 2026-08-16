@@ -21,6 +21,7 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
 interface CoursesContextType {
   courses: Course[];
   categories: CategoryItem[];
+  enrolledCourseIds: string[];
   isLoading: boolean;
   addCourse: (newCourse: Course) => Promise<void>;
   updateCourse: (id: string, updatedCourse: Partial<Course>) => Promise<void>;
@@ -30,6 +31,7 @@ interface CoursesContextType {
   getCourseById: (id: string) => Course | undefined;
   resetToDefault: () => Promise<void>;
   refreshFromSupabase: () => Promise<void>;
+  refreshEnrolledCourses: () => Promise<void>;
 }
 
 const CoursesContext = createContext<CoursesContextType | undefined>(undefined);
@@ -94,9 +96,39 @@ function mapCourseToRow(course: Course): any {
 export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [courses, setCourses] = useState<Course[]>(COURSES_DATA);
   const [categories, setCategories] = useState<CategoryItem[]>(INITIAL_CATEGORIES);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const supabase = createClient();
+
+  const fetchEnrolledCourses = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !user.email) {
+        setEnrolledCourseIds([]);
+        return;
+      }
+
+      const { data: orders, error } = await supabase
+        .from('orders')
+        .select('items')
+        .eq('customer_email', user.email);
+
+      if (!error && orders) {
+        const idsSet = new Set<string>();
+        orders.forEach((ord: any) => {
+          if (Array.isArray(ord.items)) {
+            ord.items.forEach((item: any) => {
+              if (item.course_id) idsSet.add(item.course_id);
+            });
+          }
+        });
+        setEnrolledCourseIds(Array.from(idsSet));
+      }
+    } catch (err) {
+      console.error('Error fetching enrolled courses:', err);
+    }
+  };
 
   const fetchFromSupabase = async () => {
     setIsLoading(true);
@@ -126,6 +158,9 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!courseErr && courseData && courseData.length > 0) {
         setCourses(courseData.map(mapRowToCourse));
       }
+
+      // 3. Fetch Enrolled Courses for logged in user
+      await fetchEnrolledCourses();
     } catch (err) {
       console.error('Error fetching data from Supabase:', err);
     } finally {
@@ -135,14 +170,21 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     fetchFromSupabase();
+
+    // Listen to Auth state changes to refresh enrolled course IDs
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      fetchEnrolledCourses();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const addCourse = async (newCourse: Course) => {
-    // Optimistic local UI update
     const updated = [newCourse, ...courses];
     setCourses(updated);
 
-    // Sync to Supabase DB
     try {
       const row = mapCourseToRow(newCourse);
       const { error } = await supabase.from('courses').upsert(row);
@@ -159,10 +201,8 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!target) return;
     const merged = { ...target, ...updatedCourse };
 
-    // Local UI update
     setCourses(courses.map((c) => (c.id === id ? merged : c)));
 
-    // Sync to Supabase DB
     try {
       const row = mapCourseToRow(merged);
       const { error } = await supabase.from('courses').update(row).eq('id', id);
@@ -175,10 +215,8 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const deleteCourse = async (id: string) => {
-    // Local UI update
     setCourses(courses.filter((c) => c.id !== id));
 
-    // Sync to Supabase DB
     try {
       const { error } = await supabase.from('courses').delete().eq('id', id);
       if (error) {
@@ -195,10 +233,8 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (existing) return;
     const newCat: CategoryItem = { id: catId, name, status: 'Hoạt động' };
     
-    // Local UI update
     setCategories([...categories, newCat]);
 
-    // Sync to Supabase DB
     try {
       const { error } = await supabase.from('categories').upsert({
         id: catId,
@@ -242,6 +278,7 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ child
       value={{
         courses,
         categories,
+        enrolledCourseIds,
         isLoading,
         addCourse,
         updateCourse,
@@ -251,6 +288,7 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ child
         getCourseById,
         resetToDefault,
         refreshFromSupabase: fetchFromSupabase,
+        refreshEnrolledCourses: fetchEnrolledCourses,
       }}
     >
       {children}

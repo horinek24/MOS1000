@@ -15,7 +15,7 @@ interface RecentOrderActivity {
 }
 
 export default function HomePage() {
-  const { courses, categories: dynamicCategories } = useCourses();
+  const { courses, categories: dynamicCategories, enrolledCourseIds } = useCourses();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
 
@@ -61,6 +61,9 @@ export default function HomePage() {
   ];
 
   const filteredCourses = courses.filter((course) => {
+    if (enrolledCourseIds.includes(course.id)) {
+      return false;
+    }
     if (selectedCategory !== 'all' && course.category !== selectedCategory) {
       return false;
     }

@@ -7,7 +7,7 @@ import { Breadcrumb } from '@/components/Breadcrumb';
 import { useCourses } from '@/context/CoursesContext';
 
 function CoursesContent() {
-  const { courses, categories } = useCourses();
+  const { courses, categories, enrolledCourseIds } = useCourses();
   const searchParams = useSearchParams();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -37,6 +37,11 @@ function CoursesContent() {
 
     return courses
       .filter((course) => {
+        // Exclude courses already enrolled/purchased by the user
+        if (enrolledCourseIds.includes(course.id)) {
+          return false;
+        }
+
         // Category filter: If text search is active, do not block results from other categories unless user manually selected a specific category pill
         if (selectedCategory !== 'all' && !query) {
           if (course.category !== selectedCategory) return false;
