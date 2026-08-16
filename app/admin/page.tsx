@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCourses } from '@/context/CoursesContext';
 
 export default function AdminDashboardPage() {
-  const { user, login, isAdmin, logout } = useAuth();
+  const { user, signIn, isAdmin, logout } = useAuth();
   const {
     courses: coursesList,
     categories: categoriesList,
@@ -140,7 +140,7 @@ export default function AdminDashboardPage() {
   ];
 
   const handleEnableAdmin = () => {
-    login('Quản Trị Viên (Admin)', 'admin@mos1000.vn', 'admin');
+    window.location.href = '/login';
   };
 
   // Open Form to Add New Course
