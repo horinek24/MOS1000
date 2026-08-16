@@ -22,21 +22,40 @@ export const Footer: React.FC = () => {
             </Link>
 
             <p className="custom-footer-desc">
-              Khóa học & chứng chỉ tin học văn phòng MOS 1000/1000 hàng đầu Việt Nam.
+              Khóa học & chứng chỉ tin học văn phòng<br />
+              MOS 1000/1000 hàng đầu Việt Nam.
             </p>
 
             <div className="social-icon-row">
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="social-btn" title="Facebook">
+              <a
+                href="https://www.facebook.com/trinhtan.phat.33/?locale=vi_VN"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="social-btn"
+                title="Facebook"
+              >
                 <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
                 </svg>
               </a>
-              <a href="https://tiktok.com" target="_blank" rel="noopener noreferrer" className="social-btn" title="TikTok">
+              <a
+                href="https://www.tiktok.com/@p_shinaa.24"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="social-btn"
+                title="TikTok"
+              >
                 <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                   <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5v3a8 8 0 0 1-5-1.78V16a7 7 0 1 1-7-7c.34 0 .67.03 1 .08V12z" />
                 </svg>
               </a>
-              <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="social-btn" title="YouTube">
+              <a
+                href="https://www.youtube.com/@TanPhat-xh2dr"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="social-btn"
+                title="YouTube"
+              >
                 <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                   <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                 </svg>
@@ -49,9 +68,9 @@ export const Footer: React.FC = () => {
             <h4 className="custom-col-title">Thông tin</h4>
             <ul className="custom-footer-links">
               <li><Link href="/about">Về chúng tôi</Link></li>
-              <li><Link href="/about">Chính sách bảo mật</Link></li>
-              <li><Link href="/about">Điều khoản sử dụng</Link></li>
-              <li><Link href="/about">Chính sách đổi trả</Link></li>
+              <li><Link href="/privacy">Chính sách bảo mật</Link></li>
+              <li><Link href="/terms">Điều khoản sử dụng</Link></li>
+              <li><Link href="/return-policy">Chính sách đổi trả</Link></li>
             </ul>
           </div>
 
@@ -59,10 +78,10 @@ export const Footer: React.FC = () => {
           <div className="custom-footer-col">
             <h4 className="custom-col-title">Hỗ trợ khách hàng</h4>
             <ul className="custom-footer-links">
-              <li><Link href="/courses">Hướng dẫn mua hàng</Link></li>
-              <li><Link href="/checkout">Thanh toán & giao hàng</Link></li>
-              <li><Link href="/about">Bảo hành & đổi trả</Link></li>
-              <li><Link href="/about">Câu hỏi thường gặp</Link></li>
+              <li><Link href="/buying-guide">Hướng dẫn mua hàng</Link></li>
+              <li><Link href="/payment-delivery">Thanh toán & giao hàng</Link></li>
+              <li><Link href="/warranty-returns">Bảo hành & đổi trả</Link></li>
+              <li><Link href="/faq">Câu hỏi thường gặp</Link></li>
             </ul>
           </div>
 
