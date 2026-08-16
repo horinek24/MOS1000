@@ -1,7 +1,11 @@
 const { Client } = require('pg');
 require('dotenv').config({ path: '.env.local' });
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:%3D%249M%40%26M9m9ekw.%2B@db.itecxxuvzfentryqllsz.supabase.co:5432/postgres';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('❌ Error: DATABASE_URL environment variable is missing in .env.local!');
+  process.exit(1);
+}
 
 async function seedDatabase() {
   console.log('🔌 Connecting to Supabase PostgreSQL database...');
