@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { Toast } from '@/components/Toast';
+import { createClient } from '@/utils/supabase/client';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -15,8 +16,9 @@ export default function ContactPage() {
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const supabase = createClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName || !formData.email || !formData.message) {
       alert('Vui lòng điền đầy đủ Họ tên, Email và Nội dung tin nhắn!');
@@ -25,9 +27,25 @@ export default function ContactPage() {
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setToastMessage(`Cảm ơn học viên ${formData.fullName}! Tin nhắn tư vấn của bạn đã được gửi thành công. Đội ngũ MOS1000 Master sẽ phản hồi qua Zalo/Email trong 30 phút.`);
+    try {
+      const payload = {
+        full_name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone || null,
+        subject: formData.subject,
+        message: formData.message,
+        status: 'Mới',
+      };
+
+      const { error } = await supabase.from('contact_messages').insert(payload);
+
+      if (error) {
+        console.error('Lỗi khi gửi tin nhắn liên hệ lên Supabase DB:', error);
+      } else {
+        console.log('Đã lưu tin nhắn liên hệ vào Supabase DB thành công!');
+      }
+
+      setToastMessage(`Cảm ơn học viên ${formData.fullName}! Tin nhắn của bạn đã được gửi tới hệ thống quản trị MOS1000 Master.`);
       setFormData({
         fullName: '',
         email: '',
@@ -35,7 +53,12 @@ export default function ContactPage() {
         subject: 'Tư vấn khóa học MOS Word/Excel/PowerPoint',
         message: '',
       });
-    }, 600);
+    } catch (err) {
+      console.error('Lỗi quá trình gửi liên hệ:', err);
+      alert('Có lỗi xảy ra khi gửi tin nhắn. Vui lòng thử lại!');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -44,7 +67,7 @@ export default function ContactPage() {
 
       <Breadcrumb items={[{ label: 'Liên hệ tư vấn' }]} />
 
-      <section className="courses-section">
+      <section className="courses-section" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
         <div className="container" style={{ maxWidth: '1050px' }}>
           <div className="section-header" style={{ marginBottom: '2rem' }}>
             <div>
