@@ -68,6 +68,14 @@ export const Header: React.FC = () => {
             </li>
             <li>
               <Link
+                href="/my-courses"
+                className={`nav-link ${pathname === '/my-courses' ? 'active' : ''}`}
+              >
+                Khóa Học Đã Đăng Ký
+              </Link>
+            </li>
+            <li>
+              <Link
                 href="/about"
                 className={`nav-link ${pathname === '/about' ? 'active' : ''}`}
               >
