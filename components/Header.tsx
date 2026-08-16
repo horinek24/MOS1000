@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
@@ -21,9 +21,17 @@ export const Header: React.FC = () => {
   const cartCount = getTotalCount();
   const wishlistCount = wishlist.length;
 
+  const handlePerformSearch = () => {
+    if (searchQuery.trim()) {
+      router.push(`/courses?search=${encodeURIComponent(searchQuery.trim())}&category=all`);
+    } else {
+      router.push('/courses');
+    }
+  };
+
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchQuery.trim()) {
-      router.push(`/courses?search=${encodeURIComponent(searchQuery.trim())}`);
+    if (e.key === 'Enter') {
+      handlePerformSearch();
     }
   };
 
@@ -81,17 +89,23 @@ export const Header: React.FC = () => {
             <input
               type="text"
               id="global-search-input"
-              placeholder="Tìm khóa học Word, Excel, PowerPoint..."
+              placeholder="Tìm khóa học 365, Word, Excel..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
             />
-            <span className="search-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <button
+              type="button"
+              className="search-icon"
+              onClick={handlePerformSearch}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Click để tìm kiếm"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
-            </span>
+            </button>
           </div>
 
           {/* Cart, Wishlist Buttons & User Actions */}
