@@ -179,6 +179,9 @@ export const Header: React.FC = () => {
                       <Link href="/" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
                         Trang chủ
                       </Link>
+                      <Link href="/my-courses" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                        🎓 Khóa học của tôi
+                      </Link>
                       <Link href="/wishlist" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
                         Khóa học yêu thích ({wishlistCount})
                       </Link>

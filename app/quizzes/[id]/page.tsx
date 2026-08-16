@@ -4,11 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { QUIZZES_DATA, Quiz, Question } from '@/data/quizzes';
 import { Breadcrumb } from '@/components/Breadcrumb';
+import { useAuth } from '@/context/AuthContext';
+import { createClient } from '@/utils/supabase/client';
 
 export default function QuizExamPage() {
   const params = useParams();
   const router = useRouter();
   const quizId = params.id as string;
+  const { user } = useAuth();
+  const supabase = createClient();
 
   const quiz = QUIZZES_DATA.find((q) => q.id === quizId) || QUIZZES_DATA[0];
 
@@ -46,7 +50,7 @@ export default function QuizExamPage() {
     }));
   };
 
-  const handleSubmitExam = () => {
+  const handleSubmitExam = async () => {
     let correctCount = 0;
     quiz.questions.forEach((q) => {
       if (selectedAnswers[q.id] === q.correctOption) {
@@ -55,8 +59,36 @@ export default function QuizExamPage() {
     });
 
     const calculatedScore = Math.round((correctCount / quiz.questions.length) * 1000);
+    const passed = calculatedScore >= quiz.passScore;
+    const timeSpentSeconds = quiz.durationMins * 60 - timeLeft;
+
     setScore(calculatedScore);
     setIsSubmitted(true);
+
+    // Save exam result to Supabase DB 'quiz_results'
+    try {
+      const payload = {
+        user_id: user?.id || null,
+        user_email: user?.email || 'GuestLearner@mos1000.vn',
+        user_name: user?.name || 'Học viên Ẩn danh',
+        quiz_id: quiz.id,
+        quiz_title: quiz.title,
+        score: calculatedScore,
+        total_questions: quiz.questions.length,
+        correct_answers: correctCount,
+        time_spent: timeSpentSeconds,
+        passed,
+      };
+
+      const { error } = await supabase.from('quiz_results').insert(payload);
+      if (error) {
+        console.error('Lỗi khi lưu kết quả thi thử vào Supabase:', error);
+      } else {
+        console.log('Đã lưu kết quả thi thử thành công vào Supabase!');
+      }
+    } catch (err) {
+      console.error('Lỗi kết nối Supabase khi lưu điểm thi:', err);
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -74,7 +106,7 @@ export default function QuizExamPage() {
         ]}
       />
 
-      <section className="quiz-exam-container">
+      <section className="quiz-exam-container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
         <div className="container" style={{ maxWidth: '900px' }}>
           {!isSubmitted ? (
             /* Live Exam Mode */
@@ -173,7 +205,7 @@ export default function QuizExamPage() {
             </div>
           ) : (
             /* Results Screen Mode */
-            <div className="quiz-exam-card" style={{ textAlign: 'center' }}>
+            <div className="quiz-exam-card" style={{ textAlign: 'center', backgroundColor: '#ffffff', padding: '3rem 2rem', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)' }}>
               <div
                 style={{
                   width: '80px',
@@ -197,21 +229,24 @@ export default function QuizExamPage() {
                 </svg>
               </div>
 
-              <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem', color: '#0f172a' }}>
                 {(score || 0) >= quiz.passScore ? '🎉 CHÚC MỪNG BẠN ĐÃ ĐẠT!' : '❌ CHƯA ĐẠT ĐIỂM SÀN'}
               </h2>
 
-              <div style={{ fontSize: '3rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: '0.5rem' }}>
+              <div style={{ fontSize: '3.2rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: '0.5rem' }}>
                 {score} <span style={{ fontSize: '1.2rem', color: 'var(--color-muted)' }}>/ 1000 Điểm</span>
               </div>
 
-              <p style={{ color: 'var(--color-muted)', fontSize: '1rem', marginBottom: '2rem' }}>
-                Điểm sàn đậu bài thi Certiport: <strong>{quiz.passScore}/1000</strong>
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
+                Điểm sàn đậu chứng chỉ Certiport: <strong>{quiz.passScore}/1000</strong>
               </p>
+              <div style={{ fontSize: '0.88rem', color: '#10b981', fontWeight: 600, backgroundColor: '#ecfdf5', padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', display: 'inline-block', marginBottom: '2rem' }}>
+                ✓ Kết quả thi đã được lưu thành công vào cơ sở dữ liệu Supabase DB!
+              </div>
 
               {/* Review Answers & Explanations */}
               <div style={{ textAlign: 'left', marginTop: '2.5rem', borderTop: '1px solid var(--color-border)', paddingTop: '2rem' }}>
-                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '1.5rem' }}>Xem Chi Tiết Đáp Án & Giải Thích:</h3>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '1.5rem', color: '#0f172a' }}>Xem Chi Tiết Đáp Án & Giải Thích:</h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {quiz.questions.map((q, idx) => {
@@ -227,7 +262,7 @@ export default function QuizExamPage() {
                           backgroundColor: isCorrect ? '#f0fdf4' : '#fef2f2',
                         }}
                       >
-                        <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.75rem' }}>
+                        <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.75rem', color: '#0f172a' }}>
                           Câu {idx + 1}: {q.questionText}
                         </div>
 
@@ -246,10 +281,10 @@ export default function QuizExamPage() {
 
               <div style={{ marginTop: '2.5rem', display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                 <button className="btn btn-primary" onClick={() => { setIsSubmitted(false); setScore(null); setSelectedAnswers({}); setTimeLeft(quiz.durationMins * 60); }}>
-                  Làm lại bài thi này
+                  🔄 Làm lại bài thi này
                 </button>
                 <button className="btn btn-outline-navy" onClick={() => router.push('/quizzes')}>
-                  Xem đề thi khác
+                  🏆 Xem Bảng Xếp Hạng & Đề Khác
                 </button>
               </div>
             </div>

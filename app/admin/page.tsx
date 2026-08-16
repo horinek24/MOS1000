@@ -558,19 +558,41 @@ export default function AdminDashboardPage() {
                             </div>
 
                             <div>
-                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Chọn Ảnh sản phẩm từ thư mục Assets</label>
-                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Ảnh Sản Phẩm (Tải lên từ máy tính hoặc chọn mẫu)</label>
+                              
+                              {/* File Upload from PC */}
+                              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem' }}>
                                 <input
-                                  type="text"
-                                  placeholder="Đường dẫn ảnh: /MOS1000_Assets/assets/images/..."
-                                  value={formData.image}
-                                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                                  style={{ flex: 1, padding: '0.7rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+                                  type="file"
+                                  accept="image/*"
+                                  id="admin-image-file-input"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const reader = new FileReader();
+                                      reader.onload = (event) => {
+                                        if (event.target?.result) {
+                                          setFormData({ ...formData, image: event.target.result as string });
+                                        }
+                                      };
+                                      reader.readAsDataURL(file);
+                                    }
+                                  }}
+                                  style={{ fontSize: '0.85rem' }}
                                 />
+                                <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>hoặc dán đường dẫn URL:</span>
                               </div>
 
+                              <input
+                                type="text"
+                                placeholder="Đường dẫn URL ảnh: /MOS1000_Assets/assets/images/... hoặc http://"
+                                value={formData.image}
+                                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                                style={{ width: '100%', padding: '0.65rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', marginBottom: '0.5rem' }}
+                              />
+
                               {/* Preset Images Gallery Selectors */}
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.75rem' }}>
                                 {presetImages.map((img) => (
                                   <button
                                     key={img.path}
@@ -590,6 +612,20 @@ export default function AdminDashboardPage() {
                                   </button>
                                 ))}
                               </div>
+
+                              {/* Live Image Preview Box */}
+                              {formData.image && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid #e2e8f0' }}>
+                                  <img
+                                    src={formData.image}
+                                    alt="Preview"
+                                    style={{ width: '80px', height: '50px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid #cbd5e1' }}
+                                  />
+                                  <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 700 }}>
+                                    ✓ Xem trước ảnh trực tiếp thành công!
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
 
