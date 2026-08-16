@@ -5,30 +5,94 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { formatVND } from '@/data/courses';
 import { Breadcrumb } from '@/components/Breadcrumb';
+import { createClient } from '@/utils/supabase/client';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, clearCart, getTotalPrice } = useCart();
+  const supabase = createClient();
 
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
+    address: '',
     notes: '',
     paymentMethod: 'qr',
   });
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName || !formData.email || !formData.phone) {
       alert('Vui lòng điền đầy đủ Họ tên, Email và Số điện thoại!');
       return;
     }
 
-    setIsSuccess(true);
-    clearCart();
+    if (cart.length === 0) {
+      alert('Giỏ hàng của bạn đang trống. Vui lòng chọn khóa học trước khi thanh toán!');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const totalPrice = getTotalPrice();
+
+    try {
+      // 1. Insert order record into Supabase 'orders' table
+      const orderPayload = {
+        customer_name: formData.fullName,
+        customer_email: formData.email,
+        customer_phone: formData.phone,
+        customer_address: formData.address || 'Chưa cung cấp',
+        payment_method: formData.paymentMethod,
+        payment_status: 'pending',
+        total_amount: totalPrice,
+        notes: formData.notes || null,
+        items: cart.map((item) => ({
+          course_id: item.course.id,
+          course_title: item.course.title,
+          price: item.course.price,
+          quantity: 1,
+        })),
+      };
+
+      const { data: newOrder, error: orderErr } = await supabase
+        .from('orders')
+        .insert(orderPayload)
+        .select()
+        .single();
+
+      if (orderErr) {
+        console.error('Lỗi khi ghi đơn hàng vào Supabase:', orderErr);
+      } else if (newOrder) {
+        setCreatedOrderId(newOrder.id);
+
+        // 2. Insert detail items into 'order_items' table
+        const orderItemsPayload = cart.map((item) => ({
+          order_id: newOrder.id,
+          course_id: item.course.id,
+          course_title: item.course.title,
+          price: item.course.price,
+          quantity: 1,
+        }));
+
+        const { error: itemsErr } = await supabase.from('order_items').insert(orderItemsPayload);
+        if (itemsErr) {
+          console.error('Lỗi khi ghi chi tiết đơn hàng order_items:', itemsErr);
+        }
+      }
+
+      setIsSuccess(true);
+      clearCart();
+    } catch (error) {
+      console.error('Lỗi quá trình thanh toán:', error);
+      alert('Có lỗi xảy ra khi xử lý đơn hàng. Vui lòng thử lại!');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const totalPrice = getTotalPrice();
@@ -88,6 +152,28 @@ export default function CheckoutPage() {
                     </div>
 
                     <div>
+                      <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.35rem' }}>Địa chỉ liên hệ / Nhận chứng chỉ</label>
+                      <input
+                        type="text"
+                        placeholder="123 Đường Cầu Giấy, Hà Nội"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.35rem' }}>Ghi chú đơn hàng (Tùy chọn)</label>
+                      <input
+                        type="text"
+                        placeholder="Ghi chú về thời gian học hoặc yêu cầu khác"
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+                      />
+                    </div>
+
+                    <div>
                       <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, marginBottom: '0.5rem' }}>Phương thức thanh toán</label>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
@@ -101,8 +187,13 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.9rem', marginTop: '1rem' }}>
-                      Xác nhận đăng ký học ({formatVND(totalPrice)})
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="btn btn-primary"
+                      style={{ width: '100%', padding: '0.9rem', marginTop: '1rem', opacity: isSubmitting ? 0.7 : 1 }}
+                    >
+                      {isSubmitting ? 'Đang xử lý đơn hàng...' : `Xác nhận đăng ký học (${formatVND(totalPrice)})`}
                     </button>
                   </div>
                 </form>
@@ -134,9 +225,14 @@ export default function CheckoutPage() {
               </div>
 
               <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.75rem' }}>Đăng Ký Khóa Học Thành Công!</h2>
-              <p style={{ color: 'var(--color-muted)', fontSize: '1rem', marginBottom: '2rem' }}>
-                Cảm ơn học viên <strong>{formData.fullName}</strong>. Thông tin tài khoản khóa học và mã kích hoạt đã được gửi tới email <strong>{formData.email}</strong>.
+              <p style={{ color: 'var(--color-muted)', fontSize: '1rem', marginBottom: '1rem' }}>
+                Cảm ơn học viên <strong>{formData.fullName}</strong>. Đơn hàng đã được lưu vào hệ thống Supabase!
               </p>
+              {createdOrderId && (
+                <p style={{ fontSize: '0.88rem', color: 'var(--color-primary)', fontWeight: 600, marginBottom: '2rem' }}>
+                  Mã đơn hàng Supabase ID: <code>{createdOrderId}</code>
+                </p>
+              )}
 
               <button className="btn btn-primary" onClick={() => router.push('/')}>
                 Trở về Trang chủ
