@@ -8,9 +8,12 @@ import { formatVND } from '@/data/courses';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { createClient } from '@/utils/supabase/client';
 
+import { useCourses } from '@/context/CoursesContext';
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, clearCart, getTotalPrice } = useCart();
+  const { courses, refreshFromSupabase } = useCourses();
   const supabase = createClient();
 
   const [formData, setFormData] = useState({
@@ -90,6 +93,17 @@ export default function CheckoutPage() {
         if (itemsErr) {
           console.error('Lỗi khi ghi chi tiết đơn hàng order_items:', itemsErr);
         }
+
+        // 3. Increment students_count for each ordered course & refresh global state
+        for (const item of cart) {
+          const matchingCourse = courses.find((c) => c.id === item.course.id);
+          const newCount = (matchingCourse?.studentsCount || 0) + 1;
+          await supabase
+            .from('courses')
+            .update({ students_count: newCount })
+            .eq('id', item.course.id);
+        }
+        await refreshFromSupabase();
       }
 
       setIsSuccess(true);

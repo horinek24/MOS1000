@@ -1,14 +1,52 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CourseCard } from '@/components/CourseCard';
 import { useCourses } from '@/context/CoursesContext';
+import { createClient } from '@/utils/supabase/client';
+import { formatVND } from '@/data/courses';
+
+interface RecentOrderActivity {
+  id: string;
+  customer_name: string;
+  created_at: string;
+  items: any[];
+}
 
 export default function HomePage() {
   const { courses, categories: dynamicCategories } = useCourses();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedLevel, setSelectedLevel] = useState<string>('all');
+
+  const [recentOrders, setRecentOrders] = useState<RecentOrderActivity[]>([]);
+  const [totalOrdersCount, setTotalOrdersCount] = useState<number>(0);
+
+  const supabase = createClient();
+
+  // Fetch real-time live registration activity from Supabase DB
+  useEffect(() => {
+    async function fetchLiveOrderStats() {
+      try {
+        const { data, count, error } = await supabase
+          .from('orders')
+          .select('id, customer_name, created_at, items', { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .limit(4);
+
+        if (!error && data) {
+          setRecentOrders(data);
+          if (count !== null) setTotalOrdersCount(count);
+        }
+      } catch (err) {
+        console.error('Error fetching live order stats for homepage:', err);
+      }
+    }
+
+    fetchLiveOrderStats();
+    const interval = setInterval(fetchLiveOrderStats, 5000); // Polling every 5s for live updates
+    return () => clearInterval(interval);
+  }, []);
 
   const categoryFilterList = [
     { id: 'all', label: 'Tất cả môn' },
@@ -31,6 +69,8 @@ export default function HomePage() {
     }
     return true;
   });
+
+  const totalStudentsCombined = courses.reduce((sum, c) => sum + (c.studentsCount || 0), 0);
 
   return (
     <>
@@ -114,6 +154,71 @@ export default function HomePage() {
                 src="/MOS1000_Assets/assets/images/banner/banner-trang-chu-MOS-1000.png"
                 alt="MOS1000 Master Banner Luyện thi chứng chỉ tin học văn phòng quốc tế"
               />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Live Supabase Orders & Registration Activity Bar */}
+      <section style={{ backgroundColor: '#f8fafc', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', padding: '1.75rem 0' }}>
+        <div className="container">
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: '2rem', alignItems: 'center' }}>
+            {/* Stat Counters */}
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem 1.5rem', boxShadow: 'var(--shadow-sm)' }}>
+              <div style={{ fontSize: '0.82rem', color: 'var(--color-primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                ⚡ Cập nhật theo thời gian thực (Supabase Live)
+              </div>
+              <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-dark)' }}>{totalStudentsCombined.toLocaleString('vi-VN')}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>Học viên đã đăng ký</div>
+                </div>
+                <div style={{ width: '1px', height: '36px', backgroundColor: 'var(--color-border)' }} />
+                <div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-primary)' }}>{totalOrdersCount}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>Đơn đăng ký mới</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Live Orders Activity Feed */}
+            <div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }} />
+                Hoạt động đăng ký vừa diễn ra từ học viên:
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+                {recentOrders.length > 0 ? (
+                  recentOrders.map((order) => {
+                    const firstCourseTitle = Array.isArray(order.items) && order.items.length > 0 ? (order.items[0].course_title || order.items[0].title || 'Khóa học MOS') : 'Khóa học MOS';
+                    return (
+                      <div
+                        key={order.id}
+                        style={{
+                          backgroundColor: '#ffffff',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '0.65rem 1rem',
+                          fontSize: '0.82rem',
+                          whiteSpace: 'nowrap',
+                          boxShadow: 'var(--shadow-sm)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <span>🎉</span>
+                        <div>
+                          <strong style={{ color: '#0f172a' }}>{order.customer_name}</strong> vừa đăng ký <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{firstCourseTitle}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>Đang cập nhật lượt đăng ký mới...</div>
+                )}
+              </div>
             </div>
           </div>
         </div>
