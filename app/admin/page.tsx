@@ -7,6 +7,19 @@ import { Course, formatVND } from '@/data/courses';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { useAuth } from '@/context/AuthContext';
 import { useCourses } from '@/context/CoursesContext';
+import { createClient } from '@/utils/supabase/client';
+
+interface RealOrder {
+  id: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  customer_address: string;
+  total_price: number;
+  status: string;
+  items: any[];
+  created_at: string;
+}
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -19,7 +32,6 @@ export default function AdminDashboardPage() {
     deleteCourse,
     addCategory,
     deleteCategory,
-    resetToDefault,
   } = useCourses();
 
   useEffect(() => {
@@ -41,6 +53,10 @@ export default function AdminDashboardPage() {
   // Search & Filter State for Courses
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
+
+  // Real Orders State from Supabase DB
+  const [realOrders, setRealOrders] = useState<RealOrder[]>([]);
+  const [isOrdersLoading, setIsOrdersLoading] = useState<boolean>(false);
 
   // Form State for Add / Edit Course
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -65,76 +81,56 @@ export default function AdminDashboardPage() {
     description: '',
   });
 
-  // Local Image Upload Handler (Reads file from computer as Data URL)
-  const handleLocalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate image file type
-      if (!file.type.startsWith('image/')) {
-        alert('Vui lòng chọn tập tin hình ảnh (PNG, JPG, JPEG, WEBP, SVG)!');
-        return;
+  // Fetch real live orders from Supabase DB
+  const fetchRealOrders = async () => {
+    setIsOrdersLoading(true);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setRealOrders(data);
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setFormData((prev) => ({
-            ...prev,
-            image: event.target!.result as string,
-          }));
-        }
-      };
-      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error fetching orders from Supabase:', err);
+    } finally {
+      setIsOrdersLoading(false);
     }
   };
 
-  // Handler to Add New Category
-  const handleAddCategory = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCatName.trim()) {
-      alert('Vui lòng nhập tên danh mục môn học mới!');
-      return;
+  useEffect(() => {
+    if (activeTab === 'orders' || activeTab === 'dashboard') {
+      fetchRealOrders();
     }
+  }, [activeTab]);
 
-    addCategory(newCatName.trim());
-    setNewCatName('');
-    setIsAddCatOpen(false);
-    alert(`Đã thêm danh mục mới thành công! Bây giờ danh mục này sẽ xuất hiện trên toàn bộ website và trang chủ.`);
+  // Update order status directly in Supabase DB
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (error) {
+        alert('⚠️ Lỗi cập nhật trạng thái đơn hàng: ' + error.message);
+      } else {
+        setRealOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+        );
+        alert(`🎉 Đã đổi trạng thái đơn hàng sang "${newStatus}" thành công!`);
+      }
+    } catch (err: any) {
+      alert('⚠️ Lỗi kết nối Supabase: ' + err.message);
+    }
   };
 
-  // Delete Category
-  const handleDeleteCategory = (id: string, name: string) => {
-    if (confirm(`Bạn có chắc chắn muốn xóa danh mục "${name}"?`)) {
-      deleteCategory(id);
-    }
-  };
-
-  // Delete Course
-  const handleDeleteCourse = (id: string, title: string) => {
-    if (confirm(`Bạn có chắc chắn muốn xóa khóa học "${title}" khỏi hệ thống?`)) {
-      deleteCourse(id);
-    }
-  };
-
-  // Orders Mock Data
-  const [orders] = useState([
-    { id: 'ORD-1089', student: 'Nguyễn Văn Hải', email: 'hai.nguyen@gmail.com', course: 'Khóa học Word Cơ Bản', price: 490000, date: '2026-08-16', status: 'Hoàn thành' },
-    { id: 'ORD-1088', student: 'Trần Thị Mai', email: 'mai.tran@gmail.com', course: 'Khóa học Excel Nâng Cao', price: 550000, date: '2026-08-16', status: 'Hoàn thành' },
-    { id: 'ORD-1087', student: 'Phạm Quốc Bảo', email: 'bao.pham@gmail.com', course: 'Khóa học MOS 365', price: 990000, date: '2026-08-15', status: 'Chờ xử lý' },
-    { id: 'ORD-1086', student: 'Lê Thu Thảo', email: 'thao.le@gmail.com', course: 'Khóa học PowerPoint Nâng Cao', price: 550000, date: '2026-08-15', status: 'Hoàn thành' },
-    { id: 'ORD-1085', student: 'Vũ Đức Anh', email: 'anh.vu@gmail.com', course: 'Khóa học MOS 2019', price: 890000, date: '2026-08-14', status: 'Hoàn thành' },
-  ]);
-
-  // Users Mock Data
-  const [users] = useState([
-    { id: 'USR-01', name: 'Nguyễn Văn Hải', email: 'hai.nguyen@gmail.com', role: 'Học viên', coursesCount: 2, joinDate: '2026-05-10' },
-    { id: 'USR-02', name: 'Trần Thị Mai', email: 'mai.tran@gmail.com', role: 'Học viên', coursesCount: 3, joinDate: '2026-06-12' },
-    { id: 'USR-03', name: 'Quản Trị Viên (Admin)', email: 'admin@mos1000.vn', role: 'Quản trị viên', coursesCount: 13, joinDate: '2026-01-01' },
-    { id: 'USR-04', name: 'Phạm Quốc Bảo', email: 'bao.pham@gmail.com', role: 'Học viên', coursesCount: 1, joinDate: '2026-07-20' },
-    { id: 'USR-05', name: 'Lê Thu Thảo', email: 'thao.le@gmail.com', role: 'Học viên', coursesCount: 2, joinDate: '2026-08-01' },
-  ]);
-
-  // Preset Sample Images for Quick Selection
-  const sampleImages = [
+  // Preset Image Assets Gallery for New Products
+  const presetImages = [
     { label: 'Word Cơ Bản', path: '/MOS1000_Assets/assets/images/products/khoa-hoc-word/word-co-ban.jpg' },
     { label: 'Word Nâng Cao', path: '/MOS1000_Assets/assets/images/products/khoa-hoc-word/word-nang-cao.jpg' },
     { label: 'Word Nâng Cao 2', path: '/MOS1000_Assets/assets/images/products/khoa-hoc-word/word-nang-cao-2.jpg' },
@@ -149,10 +145,6 @@ export default function AdminDashboardPage() {
     { label: 'MOS 2019', path: '/MOS1000_Assets/assets/images/products/khoa-hoc-mos-2019/MOS-2019.jpg' },
     { label: 'MOS 365', path: '/MOS1000_Assets/assets/images/products/khoa-hoc-mos-365/MOS-365.jpg' },
   ];
-
-  const handleEnableAdmin = () => {
-    window.location.href = '/login';
-  };
 
   // Open Form to Add New Course
   const handleOpenAdd = () => {
@@ -188,8 +180,8 @@ export default function AdminDashboardPage() {
     setIsFormOpen(true);
   };
 
-  // Save Course (Add / Update)
-  const handleSaveCourse = (e: React.FormEvent) => {
+  // Save Course (Add / Update) to Supabase DB
+  const handleSaveCourse = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.title.trim()) {
@@ -197,13 +189,11 @@ export default function AdminDashboardPage() {
       return;
     }
 
-    // Determine category label dynamically
     const foundCat = categoriesList.find((c) => c.id === formData.category);
-    const catLabel = foundCat ? foundCat.name : formData.categoryLabel || 'Khóa học mới';
+    const catLabel = foundCat ? foundCat.name : formData.categoryLabel || 'Khóa học';
 
     if (editingCourseId) {
-      // Update existing course in global context
-      updateCourse(editingCourseId, {
+      await updateCourse(editingCourseId, {
         title: formData.title,
         category: formData.category as any,
         categoryLabel: catLabel,
@@ -214,9 +204,8 @@ export default function AdminDashboardPage() {
         desc: formData.description,
         description: formData.description,
       });
-      alert('Đã cập nhật thông tin khóa học thành công! Cập nhật đã được đồng bộ lên website.');
+      alert('🎉 Đã cập nhật sản phẩm/khóa học thành công trên Supabase DB!');
     } else {
-      // Add new course in global context
       const newCourse: Course = {
         id: 'c_' + Date.now(),
         title: formData.title,
@@ -251,11 +240,48 @@ export default function AdminDashboardPage() {
           },
         ],
       };
-      addCourse(newCourse);
-      alert(`🎉 Đã đăng khóa học "${newCourse.title}" thành công! Khóa học đã xuất hiện trực tiếp trên trang chủ và danh mục học viên.`);
+      await addCourse(newCourse);
+      alert(`🎉 Đã thêm mới sản phẩm/khóa học "${newCourse.title}" thành công lên Supabase DB!`);
     }
 
     setIsFormOpen(false);
+  };
+
+  // Delete Course with Confirmation
+  const handleDeleteCourse = async (id: string, title: string) => {
+    const confirmed = window.confirm(
+      `⚠️ BẠN CÓ CHẮC CHẮN MUỐN XÓA KHÓA HỌC?\n\nTên khóa học: "${title}"\n\nHành động này sẽ xóa vĩnh viễn sản phẩm khỏi kho dữ liệu Supabase!`
+    );
+
+    if (confirmed) {
+      await deleteCourse(id);
+      alert(`✅ Đã xóa thành công sản phẩm "${title}" khỏi Supabase DB!`);
+    }
+  };
+
+  // Add Category to Supabase DB
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) {
+      alert('Vui lòng nhập tên danh mục môn học!');
+      return;
+    }
+    await addCategory(newCatName.trim());
+    setNewCatName('');
+    setIsAddCatOpen(false);
+    alert(`🎉 Đã thêm danh mục mới "${newCatName}" thành công lên Supabase DB!`);
+  };
+
+  // Delete Category with Confirmation
+  const handleDeleteCategory = async (id: string, name: string) => {
+    const confirmed = window.confirm(
+      `⚠️ BẠN CÓ CHẮC CHẮN MUỐN XÓA DANH MỤC?\n\nTên danh mục: "${name}"\n\nHành động này sẽ xóa danh mục khỏi kho dữ liệu Supabase!`
+    );
+
+    if (confirmed) {
+      await deleteCategory(id);
+      alert(`✅ Đã xóa danh mục "${name}" khỏi Supabase DB!`);
+    }
   };
 
   // Filter Courses List
@@ -264,6 +290,8 @@ export default function AdminDashboardPage() {
     const matchesCat = selectedCategoryFilter === 'all' || c.category === selectedCategoryFilter;
     return matchesSearch && matchesCat;
   });
+
+  const totalRevenue = realOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
 
   return (
     <>
@@ -324,215 +352,113 @@ export default function AdminDashboardPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '1.75rem', alignItems: 'start' }}>
               {/* Left Admin Navigation Sidebar */}
               <aside style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem 1rem', boxShadow: 'var(--shadow-sm)' }}>
-                {/* Brand Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingBottom: '1.25rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--color-border-light)' }}>
                   <img src="/MOS1000_Assets/assets/images/logo/logo-MOS1000.png" alt="MOS 1000 Logo" style={{ height: '32px' }} />
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--color-dark)' }}>MOS1000</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontWeight: 600 }}>Admin Panel</div>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-primary)' }}>MOS1000 Admin</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>Supabase Live DB</div>
                   </div>
                 </div>
 
-                {/* Nav Links List */}
+                {/* User Info Card */}
+                <div style={{ backgroundColor: 'var(--color-bg-body)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '1.25rem', border: '1px solid var(--color-border)' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--color-muted)' }}>Đang đăng nhập:</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--color-dark)', wordBreak: 'break-all' }}>
+                    {user?.name || user?.email}
+                  </div>
+                  <div style={{ display: 'inline-block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-primary)', backgroundColor: 'var(--color-primary-light)', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-full)', marginTop: '0.35rem' }}>
+                    Quản trị viên (Admin)
+                  </div>
+                </div>
+
+                {/* Navigation Menu Links */}
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   <button
-                    onClick={() => setActiveTab('dashboard')}
                     className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-outline-navy'}`}
-                    style={{ justifyContent: 'flex-start', border: activeTab === 'dashboard' ? 'none' : '1px solid transparent', padding: '0.65rem 0.85rem', fontSize: '0.88rem' }}
+                    onClick={() => setActiveTab('dashboard')}
+                    style={{ justifyContent: 'flex-start', padding: '0.65rem 0.85rem', fontSize: '0.88rem' }}
                   >
-                    📊 Dashboard (Tổng quan)
+                    📊 Tổng quan hệ thống
                   </button>
-
                   <button
-                    onClick={() => setActiveTab('courses')}
                     className={`btn ${activeTab === 'courses' ? 'btn-primary' : 'btn-outline-navy'}`}
-                    style={{ justifyContent: 'flex-start', border: activeTab === 'courses' ? 'none' : '1px solid transparent', padding: '0.65rem 0.85rem', fontSize: '0.88rem' }}
+                    onClick={() => setActiveTab('courses')}
+                    style={{ justifyContent: 'flex-start', padding: '0.65rem 0.85rem', fontSize: '0.88rem' }}
                   >
-                    🎓 Quản lý khóa học ({coursesList.length})
+                    📚 Quản lý Khóa học ({coursesList.length})
                   </button>
-
                   <button
-                    onClick={() => setActiveTab('categories')}
                     className={`btn ${activeTab === 'categories' ? 'btn-primary' : 'btn-outline-navy'}`}
-                    style={{ justifyContent: 'flex-start', border: activeTab === 'categories' ? 'none' : '1px solid transparent', padding: '0.65rem 0.85rem', fontSize: '0.88rem' }}
+                    onClick={() => setActiveTab('categories')}
+                    style={{ justifyContent: 'flex-start', padding: '0.65rem 0.85rem', fontSize: '0.88rem' }}
                   >
-                    📂 Danh mục môn học ({categoriesList.length})
+                    🗂️ Quản lý Danh mục ({categoriesList.length})
                   </button>
-
                   <button
-                    onClick={() => setActiveTab('orders')}
                     className={`btn ${activeTab === 'orders' ? 'btn-primary' : 'btn-outline-navy'}`}
-                    style={{ justifyContent: 'flex-start', border: activeTab === 'orders' ? 'none' : '1px solid transparent', padding: '0.65rem 0.85rem', fontSize: '0.88rem' }}
+                    onClick={() => setActiveTab('orders')}
+                    style={{ justifyContent: 'flex-start', padding: '0.65rem 0.85rem', fontSize: '0.88rem' }}
                   >
-                    🛒 Đơn đăng ký học ({orders.length})
+                    📦 Quản lý Đơn hàng ({realOrders.length})
                   </button>
-
                   <button
-                    onClick={() => setActiveTab('users')}
-                    className={`btn ${activeTab === 'users' ? 'btn-primary' : 'btn-outline-navy'}`}
-                    style={{ justifyContent: 'flex-start', border: activeTab === 'users' ? 'none' : '1px solid transparent', padding: '0.65rem 0.85rem', fontSize: '0.88rem' }}
+                    className="btn btn-outline-navy"
+                    onClick={() => {
+                      logout();
+                      router.push('/login');
+                    }}
+                    style={{ justifyContent: 'flex-start', padding: '0.65rem 0.85rem', fontSize: '0.88rem', color: '#dc2626', borderColor: '#fca5a5', marginTop: '1rem' }}
                   >
-                    👥 Quản lý học viên ({users.length})
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('settings')}
-                    className={`btn ${activeTab === 'settings' ? 'btn-primary' : 'btn-outline-navy'}`}
-                    style={{ justifyContent: 'flex-start', border: activeTab === 'settings' ? 'none' : '1px solid transparent', padding: '0.65rem 0.85rem', fontSize: '0.88rem' }}
-                  >
-                    ⚙️ Cấu hình hệ thống
+                    🚪 Đăng xuất khỏi Admin
                   </button>
                 </nav>
-
-                {/* Quick Summary Card */}
-                <div style={{ backgroundColor: 'var(--color-bg-body)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '1rem', marginTop: '1.75rem', fontSize: '0.8rem' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-dark)' }}>Thống Kê Nhanh</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                    <span style={{ color: 'var(--color-muted)' }}>Khóa học:</span>
-                    <strong>{coursesList.length}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                    <span style={{ color: 'var(--color-muted)' }}>Danh mục môn:</span>
-                    <strong>{categoriesList.length} môn</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-                    <span style={{ color: 'var(--color-muted)' }}>Đơn học:</span>
-                    <strong>{orders.length} đơn</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--color-muted)' }}>Học viên:</span>
-                    <strong>7,650+</strong>
-                  </div>
-                </div>
-
-                {/* Admin Logout */}
-                <button
-                  onClick={logout}
-                  style={{ width: '100%', marginTop: '1.5rem', padding: '0.6rem', border: '1px solid #fecaca', backgroundColor: '#fef2f2', color: '#dc2626', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                >
-                  🚪 Đăng xuất Admin
-                </button>
               </aside>
 
-              {/* Main Content Area */}
+              {/* Right Admin Content Panel */}
               <main style={{ minWidth: 0 }}>
-                {/* Header Welcome Bar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem 1.75rem', marginBottom: '1.5rem' }}>
-                  <div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-dark)' }}>
-                      {activeTab === 'dashboard' && '📊 Dashboard Tổng Quan Hệ Thống'}
-                      {activeTab === 'courses' && '🎓 Quản Lý Danh Sách Khóa Học'}
-                      {activeTab === 'categories' && '📂 Quản Lý Danh Mục Môn Học'}
-                      {activeTab === 'orders' && '🛒 Quản Lý Đơn Đăng Ký Học'}
-                      {activeTab === 'users' && '👥 Danh Sách Học Viên & Tài Khoản'}
-                      {activeTab === 'settings' && '⚙️ Cấu Hình Hệ Thống'}
-                    </h1>
-                    <p style={{ color: 'var(--color-muted)', fontSize: '0.85rem', marginTop: '0.15rem' }}>
-                      Xin chào, <strong>{user?.name || 'Admin'}</strong>! Bạn có toàn quyền mở rộng danh mục môn học và đăng ảnh từ máy tính.
-                    </p>
-                  </div>
-
-                  {activeTab === 'courses' && (
-                    <button className="btn btn-primary" onClick={handleOpenAdd}>
-                      ➕ Thêm khóa học mới
-                    </button>
-                  )}
-
-                  {activeTab === 'categories' && (
-                    <button className="btn btn-primary" onClick={() => setIsAddCatOpen(true)}>
-                      ➕ Thêm danh mục môn học mới
-                    </button>
-                  )}
-                </div>
-
-                {/* TAB 1: DASHBOARD OVERVIEW */}
+                {/* TAB 1: OVERVIEW DASHBOARD */}
                 {activeTab === 'dashboard' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    {/* Top 4 KPI Cards */}
+                    {/* Stat Cards Row */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem' }}>
-                      <div className="quiz-card" style={{ padding: '1.25rem' }}>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', fontWeight: 600 }}>Tổng Số Khóa Học</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '0.25rem' }}>{coursesList.length}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.25rem' }}>↑ 100% Hiển thị active</div>
+                      <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', boxShadow: 'var(--shadow-sm)' }}>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '0.35rem' }}>Tổng số Khóa học Supabase</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-primary)' }}>{coursesList.length}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#15803d', marginTop: '0.25rem' }}>● Đã đồng bộ Supabase DB</div>
                       </div>
 
-                      <div className="quiz-card" style={{ padding: '1.25rem' }}>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', fontWeight: 600 }}>Tổng Danh Mục Môn</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-cyan)', marginTop: '0.25rem' }}>{categoriesList.length}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.25rem' }}>Tự do tạo danh mục mới</div>
+                      <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', boxShadow: 'var(--shadow-sm)' }}>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '0.35rem' }}>Danh mục Môn học</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-cyan)' }}>{categoriesList.length}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.25rem' }}>Chương trình đào tạo</div>
                       </div>
 
-                      <div className="quiz-card" style={{ padding: '1.25rem' }}>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', fontWeight: 600 }}>Học Viên Đã Đăng Ký</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10b981', marginTop: '0.25rem' }}>7,650+</div>
-                        <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.25rem' }}>↑ 18.6% so với tháng trước</div>
+                      <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', boxShadow: 'var(--shadow-sm)' }}>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '0.35rem' }}>Tổng Đơn hàng Thực Kho</div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-gold)' }}>{realOrders.length}</div>
+                        <div style={{ fontSize: '0.75rem', color: '#15803d', marginTop: '0.25rem' }}>● Đã lưu vào table orders</div>
                       </div>
 
-                      <div className="quiz-card" style={{ padding: '1.25rem' }}>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', fontWeight: 600 }}>Tỷ Lệ Đậu Certiport</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-gold)', marginTop: '0.25rem' }}>99.5%</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-gold)', marginTop: '0.25rem' }}>Thi đạt 1000 điểm</div>
+                      <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', boxShadow: 'var(--shadow-sm)' }}>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '0.35rem' }}>Tổng Doanh thu Đơn hàng</div>
+                        <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#15803d' }}>{formatVND(totalRevenue)}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.25rem' }}>Cập nhật tự động</div>
                       </div>
                     </div>
 
-                    {/* Chart & Category Distribution */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '1.5rem' }}>
-                      {/* Revenue Line Chart */}
-                      <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                          <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Biểu Đồ Đăng Ký Khóa Học (7 ngày gần nhất)</h3>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>Doanh thu: 42,580,000 đ</span>
-                        </div>
-
-                        {/* SVG Revenue Line Graph */}
-                        <div style={{ height: '220px', width: '100%', position: 'relative' }}>
-                          <svg viewBox="0 0 500 180" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                            <path d="M 0 140 Q 80 80, 160 110 T 320 60 T 500 40 L 500 180 L 0 180 Z" fill="rgba(10, 37, 64, 0.08)" />
-                            <path d="M 0 140 Q 80 80, 160 110 T 320 60 T 500 40" fill="none" stroke="var(--color-primary)" strokeWidth="3" />
-                            <circle cx="0" cy="140" r="4" fill="var(--color-primary)" />
-                            <circle cx="80" cy="90" r="4" fill="var(--color-primary)" />
-                            <circle cx="160" cy="110" r="4" fill="var(--color-primary)" />
-                            <circle cx="240" cy="70" r="5" fill="var(--color-gold)" stroke="#ffffff" strokeWidth="2" />
-                            <circle cx="320" cy="60" r="4" fill="var(--color-primary)" />
-                            <circle cx="400" cy="80" r="4" fill="var(--color-primary)" />
-                            <circle cx="500" cy="40" r="5" fill="var(--color-cyan)" />
-                          </svg>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>
-                          <span>Thứ 2</span>
-                          <span>Thứ 3</span>
-                          <span>Thứ 4</span>
-                          <span>Thứ 5</span>
-                          <span>Thứ 6</span>
-                          <span>Thứ 7</span>
-                          <span>Chủ Nhật</span>
-                        </div>
+                    {/* Action Bar */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem 1.5rem' }}>
+                      <div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>Truy Cập Nhanh Quản Lý</h3>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>Cập nhật tức thì dữ liệu cửa hàng hiển thị cho khách hàng</p>
                       </div>
-
-                      {/* Top Categories Breakdown */}
-                      <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '1.25rem' }}>Phân Bộ Đăng Ký Môn Học</h3>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                          {categoriesList.map((cat, i) => {
-                            const count = coursesList.filter((c) => c.category === cat.id).length;
-                            const pct = Math.round((count / (coursesList.length || 1)) * 100);
-                            const colors = ['var(--color-word)', 'var(--color-excel)', 'var(--color-gold)', 'var(--color-primary)', 'var(--color-cyan)'];
-                            const catColor = colors[i % colors.length];
-
-                            return (
-                              <div key={cat.id}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
-                                  <span>{cat.name}</span>
-                                  <strong>{pct}% ({count} khóa)</strong>
-                                </div>
-                                <div style={{ height: '8px', backgroundColor: 'var(--color-bg-body)', borderRadius: '4px', overflow: 'hidden' }}>
-                                  <div style={{ width: `${pct}%`, height: '100%', backgroundColor: catColor }} />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button className="btn btn-primary" onClick={handleOpenAdd}>
+                          ➕ Thêm Khóa học Mới
+                        </button>
+                        <button className="btn btn-outline-cyan" onClick={() => setIsAddCatOpen(true)}>
+                          ➕ Thêm Danh mục Mới
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -605,12 +531,14 @@ export default function AdminDashboardPage() {
                             </div>
                           </div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '1.25rem' }}>
                             <div>
-                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Học phí khuyến mãi (VNĐ) *</label>
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Giá bán thực tế (VNĐ) *</label>
                               <input
                                 type="number"
                                 required
+                                min="0"
+                                step="10000"
                                 value={formData.price}
                                 onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                                 style={{ width: '100%', padding: '0.7rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
@@ -618,95 +546,49 @@ export default function AdminDashboardPage() {
                             </div>
 
                             <div>
-                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Giá gốc trước giảm (VNĐ)</label>
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Giá gốc niêm yết (VNĐ)</label>
                               <input
                                 type="number"
+                                min="0"
+                                step="10000"
                                 value={formData.originalPrice}
                                 onChange={(e) => setFormData({ ...formData, originalPrice: Number(e.target.value) })}
                                 style={{ width: '100%', padding: '0.7rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
                               />
                             </div>
-                          </div>
 
-                          {/* Image Selection & Direct Computer File Upload */}
-                          <div style={{ backgroundColor: 'var(--color-bg-body)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
-                            <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-dark)', marginBottom: '0.75rem' }}>
-                              🖼️ Tải Ảnh Từ Máy Tính Hoặc Chọn Ảnh Mẫu
-                            </label>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 140px', gap: '1.25rem', alignItems: 'start' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                                {/* Direct Local File Upload Input */}
-                                <div>
-                                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                                    💻 Tải ảnh từ máy tính (PNG, JPG, WEBP):
-                                  </label>
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleLocalImageUpload}
-                                    style={{
-                                      width: '100%',
-                                      padding: '0.5rem',
-                                      backgroundColor: '#ffffff',
-                                      borderRadius: 'var(--radius-sm)',
-                                      border: '1px dashed var(--color-primary)',
-                                      cursor: 'pointer',
-                                      fontSize: '0.85rem',
-                                    }}
-                                  />
-                                </div>
-
-                                {/* URL Text Input Option */}
-                                <div>
-                                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                                    🔗 Hoặc nhập đường dẫn ảnh (URL / Assets path):
-                                  </label>
-                                  <input
-                                    type="text"
-                                    required
-                                    placeholder="/MOS1000_Assets/assets/images/products/khoa-hoc-word/word-co-ban.jpg"
-                                    value={formData.image}
-                                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                                    style={{ width: '100%', padding: '0.65rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', backgroundColor: '#ffffff' }}
-                                  />
-                                </div>
-
-                                {/* Quick Image Selector Grid */}
-                                <div style={{ fontSize: '0.78rem', color: 'var(--color-muted)' }}>Mẫu ảnh sẵn trong kho:</div>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                                  {sampleImages.map((img) => (
-                                    <button
-                                      key={img.path}
-                                      type="button"
-                                      onClick={() => setFormData({ ...formData, image: img.path })}
-                                      style={{
-                                        fontSize: '0.75rem',
-                                        padding: '0.25rem 0.55rem',
-                                        borderRadius: 'var(--radius-sm)',
-                                        border: formData.image === img.path ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
-                                        backgroundColor: formData.image === img.path ? 'var(--color-primary-light)' : '#ffffff',
-                                        color: formData.image === img.path ? 'var(--color-primary)' : 'inherit',
-                                        cursor: 'pointer',
-                                      }}
-                                    >
-                                      {img.label}
-                                    </button>
-                                  ))}
-                                </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Chọn Ảnh sản phẩm từ thư mục Assets</label>
+                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                <input
+                                  type="text"
+                                  placeholder="Đường dẫn ảnh: /MOS1000_Assets/assets/images/..."
+                                  value={formData.image}
+                                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                                  style={{ flex: 1, padding: '0.7rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+                                />
                               </div>
 
-                              {/* Live Thumbnail Preview Box */}
-                              <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '0.5rem', textAlign: 'center', backgroundColor: '#ffffff' }}>
-                                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-muted)', marginBottom: '0.35rem' }}>Xem trước ảnh:</div>
-                                <img
-                                  src={formData.image}
-                                  alt="Preview"
-                                  style={{ width: '100%', height: '85px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
-                                  onError={(e) => {
-                                    (e.target as HTMLElement).setAttribute('src', '/MOS1000_Assets/assets/images/products/khoa-hoc-word/word-co-ban.jpg');
-                                  }}
-                                />
+                              {/* Preset Images Gallery Selectors */}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                {presetImages.map((img) => (
+                                  <button
+                                    key={img.path}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, image: img.path })}
+                                    style={{
+                                      fontSize: '0.75rem',
+                                      padding: '0.25rem 0.55rem',
+                                      borderRadius: 'var(--radius-sm)',
+                                      border: formData.image === img.path ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                                      backgroundColor: formData.image === img.path ? 'var(--color-primary-light)' : '#ffffff',
+                                      color: formData.image === img.path ? 'var(--color-primary)' : 'inherit',
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    {img.label}
+                                  </button>
+                                ))}
                               </div>
                             </div>
                           </div>
@@ -759,8 +641,10 @@ export default function AdminDashboardPage() {
                         </select>
                       </div>
 
-                      <div style={{ fontSize: '0.85rem', color: 'var(--color-muted)' }}>
-                        Tổng số: <strong>{filteredCourses.length}</strong> / {coursesList.length} khóa học
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <button className="btn btn-primary" onClick={handleOpenAdd}>
+                          ➕ Thêm khóa học mới
+                        </button>
                       </div>
                     </div>
 
@@ -776,7 +660,7 @@ export default function AdminDashboardPage() {
                               <th style={{ padding: '0.85rem 0.5rem' }}>Danh mục</th>
                               <th style={{ padding: '0.85rem 0.5rem' }}>Trình độ</th>
                               <th style={{ padding: '0.85rem 0.5rem' }}>Học phí</th>
-                              <th style={{ padding: '0.85rem 0.5rem' }}>Trạng thái</th>
+                              <th style={{ padding: '0.85rem 0.5rem' }}>Trạng thái Supabase</th>
                               <th style={{ padding: '0.85rem 0.5rem', textAlign: 'right' }}>Thao tác</th>
                             </tr>
                           </thead>
@@ -805,7 +689,7 @@ export default function AdminDashboardPage() {
                                 </td>
                                 <td style={{ padding: '0.85rem 0.5rem' }}>
                                   <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-full)', backgroundColor: '#dcfce7', color: '#15803d' }}>
-                                    ● Hiển thị
+                                    ● Khóa sống (Supabase)
                                   </span>
                                 </td>
                                 <td style={{ padding: '0.85rem 0.5rem', textAlign: 'right' }}>
@@ -834,7 +718,7 @@ export default function AdminDashboardPage() {
                   </div>
                 )}
 
-                {/* TAB 3: CATEGORIES MANAGEMENT (Dynamic Category Addition) */}
+                {/* TAB 3: CATEGORIES MANAGEMENT */}
                 {activeTab === 'categories' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     {/* Add Category Form Box */}
@@ -910,103 +794,109 @@ export default function AdminDashboardPage() {
                   </div>
                 )}
 
-                {/* TAB 4: ORDERS MANAGEMENT */}
+                {/* TAB 4: ORDERS MANAGEMENT (Real Live Supabase Orders) */}
                 {activeTab === 'orders' && (
-                  <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem' }}>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1.25rem' }}>Đơn Đăng Ký Học Viên Gần Đây</h3>
-
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
-                          <th style={{ padding: '0.85rem' }}>Mã Đơn</th>
-                          <th style={{ padding: '0.85rem' }}>Học Viên</th>
-                          <th style={{ padding: '0.85rem' }}>Email</th>
-                          <th style={{ padding: '0.85rem' }}>Khóa Đăng Ký</th>
-                          <th style={{ padding: '0.85rem' }}>Học Phí</th>
-                          <th style={{ padding: '0.85rem' }}>Trạng Thái</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {orders.map((o) => (
-                          <tr key={o.id} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
-                            <td style={{ padding: '0.85rem', fontWeight: 700, color: 'var(--color-primary)' }}>{o.id}</td>
-                            <td style={{ padding: '0.85rem', fontWeight: 600 }}>{o.student}</td>
-                            <td style={{ padding: '0.85rem', color: 'var(--color-muted)' }}>{o.email}</td>
-                            <td style={{ padding: '0.85rem' }}>{o.course}</td>
-                            <td style={{ padding: '0.85rem', fontWeight: 800 }}>{formatVND(o.price)}</td>
-                            <td style={{ padding: '0.85rem' }}>
-                              <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-full)', backgroundColor: o.status === 'Hoàn thành' ? '#dcfce7' : '#fef3c7', color: o.status === 'Hoàn thành' ? '#15803d' : '#d97706' }}>
-                                {o.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* TAB 5: USERS MANAGEMENT */}
-                {activeTab === 'users' && (
-                  <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem' }}>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1.25rem' }}>Danh Sách Học Viên & Quản Trị Viên</h3>
-
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
-                          <th style={{ padding: '0.85rem' }}>Mã Người Dùng</th>
-                          <th style={{ padding: '0.85rem' }}>Họ Và Tên</th>
-                          <th style={{ padding: '0.85rem' }}>Email</th>
-                          <th style={{ padding: '0.85rem' }}>Vai Trò</th>
-                          <th style={{ padding: '0.85rem' }}>Khóa Học Đã Đăng Ký</th>
-                          <th style={{ padding: '0.85rem' }}>Ngày Tham Gia</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {users.map((u) => (
-                          <tr key={u.id} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
-                            <td style={{ padding: '0.85rem', color: 'var(--color-muted)' }}>{u.id}</td>
-                            <td style={{ padding: '0.85rem', fontWeight: 700 }}>{u.name}</td>
-                            <td style={{ padding: '0.85rem' }}>{u.email}</td>
-                            <td style={{ padding: '0.85rem' }}>
-                              <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-full)', backgroundColor: u.role === 'Quản trị viên' ? 'var(--color-primary-light)' : 'var(--color-bg-body)', color: u.role === 'Quản trị viên' ? 'var(--color-primary)' : 'inherit' }}>
-                                {u.role}
-                              </span>
-                            </td>
-                            <td style={{ padding: '0.85rem', fontWeight: 700 }}>{u.coursesCount} khóa</td>
-                            <td style={{ padding: '0.85rem', color: 'var(--color-muted)' }}>{u.joinDate}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* TAB 6: SETTINGS */}
-                {activeTab === 'settings' && (
-                  <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem', maxWidth: '700px' }}>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1.25rem' }}>Cấu Hình Hệ Thống MOS1000 Master</h3>
-
-                    <form onSubmit={(e) => { e.preventDefault(); alert('Đã lưu cấu hình hệ thống!'); }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Tên Website System</label>
-                        <input type="text" defaultValue="MOS1000 Master - Nền Tảng Luyện Thi Chứng Chỉ Tin Học Văn Phòng" style={{ width: '100%', padding: '0.7rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
-                      </div>
-
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Hotline Hỗ Trợ</label>
-                        <input type="text" defaultValue="0912 345 678 - 0987 654 321" style={{ width: '100%', padding: '0.7rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
-                      </div>
-
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>Email Hệ Thống</label>
-                        <input type="email" defaultValue="admin@mos1000.vn" style={{ width: '100%', padding: '0.7rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
-                      </div>
-
-                      <button type="submit" className="btn btn-primary" style={{ padding: '0.75rem 2rem', alignSelf: 'flex-start' }}>
-                        💾 Lưu cấu hình
+                  <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem', boxShadow: 'var(--shadow-sm)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>📦 Danh Sách Đơn Hàng Thực Từ Kho Supabase ({realOrders.length})</h3>
+                      <button className="btn btn-outline-cyan" style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem' }} onClick={fetchRealOrders}>
+                        🔄 Cập nhật đơn mới
                       </button>
-                    </form>
+                    </div>
+
+                    {isOrdersLoading ? (
+                      <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-muted)' }}>
+                        Đang tải danh sách đơn hàng từ kho Supabase...
+                      </div>
+                    ) : realOrders.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-muted)' }}>
+                        Chưa có đơn hàng nào trong kho dữ liệu. Khi khách đặt hàng tại trang Checkout, đơn sẽ tự động xuất hiện ở đây!
+                      </div>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '2px solid var(--color-border)', color: 'var(--color-dark-subtle)' }}>
+                              <th style={{ padding: '0.85rem 0.5rem' }}>Mã đơn</th>
+                              <th style={{ padding: '0.85rem 0.5rem' }}>Thời gian</th>
+                              <th style={{ padding: '0.85rem 0.5rem' }}>Khách hàng / SĐT / Địa chỉ</th>
+                              <th style={{ padding: '0.85rem 0.5rem' }}>Món đăng ký</th>
+                              <th style={{ padding: '0.85rem 0.5rem' }}>Tổng tiền</th>
+                              <th style={{ padding: '0.85rem 0.5rem' }}>Trạng thái đơn (Đổi trực tiếp)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {realOrders.map((o) => (
+                              <tr key={o.id} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+                                <td style={{ padding: '0.85rem 0.5rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'monospace' }}>
+                                  #{o.id.substring(0, 8)}
+                                </td>
+                                <td style={{ padding: '0.85rem 0.5rem', fontSize: '0.8rem', color: 'var(--color-muted)' }}>
+                                  {new Date(o.created_at).toLocaleString('vi-VN')}
+                                </td>
+                                <td style={{ padding: '0.85rem 0.5rem' }}>
+                                  <div style={{ fontWeight: 700, color: 'var(--color-dark)' }}>{o.customer_name}</div>
+                                  <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>📞 {o.customer_phone}</div>
+                                  <div style={{ fontSize: '0.78rem', color: 'var(--color-dark-subtle)' }}>📍 {o.customer_address || 'Địa chỉ tiêu chuẩn'}</div>
+                                  {o.customer_email && <div style={{ fontSize: '0.78rem', color: 'var(--color-muted)' }}>✉️ {o.customer_email}</div>}
+                                </td>
+                                <td style={{ padding: '0.85rem 0.5rem' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                    {Array.isArray(o.items) && o.items.length > 0 ? (
+                                      o.items.map((item: any, idx: number) => (
+                                        <div key={idx} style={{ fontSize: '0.82rem' }}>
+                                          • <strong>{item.course_title || item.title || 'Khóa học MOS'}</strong> ({formatVND(item.price || 0)})
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <span style={{ color: 'var(--color-muted)' }}>Chi tiết trong kho</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td style={{ padding: '0.85rem 0.5rem', fontWeight: 800, color: 'var(--color-primary)', fontSize: '0.95rem' }}>
+                                  {formatVND(o.total_price || 0)}
+                                </td>
+                                <td style={{ padding: '0.85rem 0.5rem' }}>
+                                  <select
+                                    value={o.status || 'Mới'}
+                                    onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                                    style={{
+                                      padding: '0.45rem 0.75rem',
+                                      borderRadius: 'var(--radius-sm)',
+                                      fontWeight: 700,
+                                      fontSize: '0.82rem',
+                                      cursor: 'pointer',
+                                      border: '1px solid var(--color-border)',
+                                      backgroundColor:
+                                        o.status === 'Đã giao'
+                                          ? '#dcfce7'
+                                          : o.status === 'Đang giao'
+                                          ? '#e0f2fe'
+                                          : o.status === 'Đã hủy'
+                                          ? '#fef2f2'
+                                          : '#fef3c7',
+                                      color:
+                                        o.status === 'Đã giao'
+                                          ? '#15803d'
+                                          : o.status === 'Đang giao'
+                                          ? '#0369a1'
+                                          : o.status === 'Đã hủy'
+                                          ? '#b91c1c'
+                                          : '#b45309',
+                                    }}
+                                  >
+                                    <option value="Mới">🟡 Mới</option>
+                                    <option value="Đang giao">🔵 Đang giao</option>
+                                    <option value="Đã giao">🟢 Đã giao</option>
+                                    <option value="Đã hủy">🔴 Đã hủy</option>
+                                  </select>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
               </main>
