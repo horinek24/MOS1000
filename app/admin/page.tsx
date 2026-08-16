@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Course, formatVND } from '@/data/courses';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { useAuth } from '@/context/AuthContext';
 import { useCourses } from '@/context/CoursesContext';
 
 export default function AdminDashboardPage() {
-  const { user, signIn, isAdmin, logout } = useAuth();
+  const router = useRouter();
+  const { user, isLoading, isAdmin, logout } = useAuth();
   const {
     courses: coursesList,
     categories: categoriesList,
@@ -19,6 +21,15 @@ export default function AdminDashboardPage() {
     deleteCategory,
     resetToDefault,
   } = useCourses();
+
+  useEffect(() => {
+    if (!isLoading && (!user || !isAdmin)) {
+      const timer = setTimeout(() => {
+        router.push('/login');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [user, isLoading, isAdmin, router]);
 
   // Active Tab: 'dashboard' | 'courses' | 'categories' | 'orders' | 'users' | 'settings'
   const [activeTab, setActiveTab] = useState<'dashboard' | 'courses' | 'categories' | 'orders' | 'users' | 'settings'>('dashboard');
@@ -260,54 +271,53 @@ export default function AdminDashboardPage() {
 
       <section className="courses-section" style={{ paddingTop: '1.5rem', paddingBottom: '3rem' }}>
         <div className="container" style={{ maxWidth: '1280px' }}>
-          {!isAdmin ? (
-            /* Admin Access Authorization Prompt Card */
+          {isLoading ? (
+            <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--color-muted)' }}>
+              Đang kiểm tra quyền truy cập hệ thống...
+            </div>
+          ) : !isAdmin ? (
+            /* Admin Access Authorization Block Notice */
             <div
               style={{
                 maxWidth: '560px',
-                margin: '2rem auto',
+                margin: '3rem auto',
                 backgroundColor: '#ffffff',
-                border: '1px solid var(--color-border)',
+                border: '1px solid #fca5a5',
                 borderRadius: 'var(--radius-lg)',
-                padding: '2.5rem',
+                padding: '3rem 2.5rem',
                 textAlign: 'center',
                 boxShadow: 'var(--shadow-md)',
               }}
             >
               <div
                 style={{
-                  width: '64px',
-                  height: '64px',
+                  width: '68px',
+                  height: '68px',
                   borderRadius: '50%',
-                  backgroundColor: 'var(--color-primary-light)',
-                  color: 'var(--color-primary)',
+                  backgroundColor: '#fef2f2',
+                  color: '#dc2626',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   margin: '0 auto 1.25rem auto',
-                  fontSize: '1.8rem',
+                  fontSize: '2rem',
                 }}
               >
-                🔐
+                🚫
               </div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Yêu Cầu Quyền Quản Trị Admin</h2>
-              <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                Để truy cập khu vực Quản trị hệ thống MOS1000 Master, bạn cần có tài khoản Admin.
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.75rem', color: '#991b1b' }}>
+                Quyền Truy Cập Bị Từ Chối (Access Denied)
+              </h2>
+              <p style={{ color: 'var(--color-muted)', fontSize: '0.95rem', marginBottom: '1.25rem', lineHeight: '1.6' }}>
+                Khu vực quản trị chỉ dành riêng cho tài khoản có vai trò <strong>Admin</strong>. Tài khoản khách/học viên không có quyền truy cập.
+              </p>
+              <p style={{ fontSize: '0.88rem', color: 'var(--color-primary)', fontWeight: 600, marginBottom: '1.75rem' }}>
+                Đang tự động chuyển hướng bạn về trang Đăng nhập...
               </p>
 
-              <div style={{ backgroundColor: 'var(--color-bg-body)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.75rem', textAlign: 'left', fontSize: '0.88rem' }}>
-                <div>• Email Admin: <strong>admin@mos1000.vn</strong></div>
-                <div>• Mật khẩu Admin: <strong>admin123</strong></div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                <button className="btn btn-primary" onClick={handleEnableAdmin}>
-                  🔑 Kích Hoạt Quyền Admin 1-Click
-                </button>
-                <Link href="/login" className="btn btn-outline-navy">
-                  Đăng nhập lại
-                </Link>
-              </div>
+              <Link href="/login" className="btn btn-primary" style={{ padding: '0.75rem 2rem' }}>
+                Đăng nhập tài khoản Admin
+              </Link>
             </div>
           ) : (
             /* Full Admin Dashboard & Management Interface */

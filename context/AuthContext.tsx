@@ -25,13 +25,18 @@ function mapSupabaseUser(sbUser: any): User {
   const metadataName = sbUser.user_metadata?.full_name || sbUser.user_metadata?.name;
   const emailName = sbUser.email ? sbUser.email.split('@')[0] : 'Học viên';
   const name = metadataName || emailName;
-  const isAdmin = sbUser.email === 'admin@mos1000.vn' || sbUser.user_metadata?.role === 'admin';
+
+  const emailLower = (sbUser.email || '').toLowerCase();
+  const isUserAdmin =
+    emailLower === 'phatwibuu@gmail.com' ||
+    emailLower === 'admin@mos1000.vn' ||
+    sbUser.user_metadata?.role === 'admin';
 
   return {
     id: sbUser.id,
     name: name,
     email: sbUser.email || '',
-    role: isAdmin ? 'admin' : 'student',
+    role: isUserAdmin ? 'admin' : 'student',
   };
 }
 
@@ -52,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     });
 
-    // 2. Auth State Change Listener (Real-time Session Sync)
+    // 2. Auth State Change Listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUser(mapSupabaseUser(session.user));
@@ -85,6 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       options: {
         data: {
           full_name: fullName,
+          role: 'student', // Default role is student (khách / học viên)
         },
       },
     });
