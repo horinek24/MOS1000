@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { COURSES_DATA, Course } from '@/data/courses';
+import { createClient } from '@/utils/supabase/client';
 
 export interface CategoryItem {
   id: string;
@@ -20,89 +21,220 @@ export const INITIAL_CATEGORIES: CategoryItem[] = [
 interface CoursesContextType {
   courses: Course[];
   categories: CategoryItem[];
-  addCourse: (newCourse: Course) => void;
-  updateCourse: (id: string, updatedCourse: Partial<Course>) => void;
-  deleteCourse: (id: string) => void;
-  addCategory: (name: string) => void;
-  deleteCategory: (id: string) => void;
+  isLoading: boolean;
+  addCourse: (newCourse: Course) => Promise<void>;
+  updateCourse: (id: string, updatedCourse: Partial<Course>) => Promise<void>;
+  deleteCourse: (id: string) => Promise<void>;
+  addCategory: (name: string) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
   getCourseById: (id: string) => Course | undefined;
-  resetToDefault: () => void;
+  resetToDefault: () => Promise<void>;
+  refreshFromSupabase: () => Promise<void>;
 }
 
 const CoursesContext = createContext<CoursesContextType | undefined>(undefined);
 
+function mapRowToCourse(row: any): Course {
+  return {
+    id: row.id,
+    title: row.title,
+    slug: row.slug || row.id,
+    category: row.category_id || 'word',
+    categoryLabel: row.category_label || 'Khóa học',
+    price: Number(row.price || 0),
+    originalPrice: Number(row.original_price || 0),
+    badge: row.badge,
+    badgeType: row.badge_type,
+    level: row.level || 'Cơ bản',
+    duration: row.duration || '',
+    lessonsCount: Number(row.lessons_count || 0),
+    rating: Number(row.rating || 5.0),
+    reviewsCount: Number(row.reviews_count || 0),
+    studentsCount: Number(row.students_count || 0),
+    image: row.image,
+    desc: row.desc_short || '',
+    description: row.desc_short || '',
+    fullDescription: row.full_description || '',
+    instructor: {
+      name: row.instructor_name || 'Đội ngũ Giảng viên MOS Master',
+      title: row.instructor_title || 'Certiport Master Instructors Team',
+      avatar: row.instructor_avatar || '/MOS1000_Assets/assets/images/logo/logo-MOS1000.png',
+    },
+    modules: typeof row.modules === 'string' ? JSON.parse(row.modules || '[]') : (row.modules || []),
+  };
+}
+
+function mapCourseToRow(course: Course): any {
+  return {
+    id: course.id,
+    title: course.title,
+    slug: course.slug || course.id,
+    category_id: course.category,
+    category_label: course.categoryLabel || 'Khóa học',
+    price: course.price,
+    original_price: course.originalPrice,
+    badge: course.badge || null,
+    badge_type: course.badgeType || null,
+    level: course.level,
+    duration: course.duration,
+    lessons_count: course.lessonsCount,
+    rating: course.rating,
+    reviews_count: course.reviewsCount,
+    students_count: course.studentsCount,
+    image: course.image,
+    desc_short: course.desc || course.description || '',
+    full_description: course.fullDescription || '',
+    instructor_name: course.instructor?.name || 'Đội ngũ Giảng viên MOS Master',
+    instructor_title: course.instructor?.title || 'Certiport Master Instructors Team',
+    instructor_avatar: course.instructor?.avatar || '/MOS1000_Assets/assets/images/logo/logo-MOS1000.png',
+    modules: course.modules || [],
+  };
+}
+
 export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [courses, setCourses] = useState<Course[]>(COURSES_DATA);
   const [categories, setCategories] = useState<CategoryItem[]>(INITIAL_CATEGORIES);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const supabase = createClient();
+
+  const fetchFromSupabase = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Fetch Categories from Supabase
+      const { data: catData, error: catErr } = await supabase
+        .from('categories')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (!catErr && catData && catData.length > 0) {
+        setCategories(
+          catData.map((c) => ({
+            id: c.id,
+            name: c.name,
+            status: 'Hoạt động',
+          }))
+        );
+      }
+
+      // 2. Fetch Courses from Supabase
+      const { data: courseData, error: courseErr } = await supabase
+        .from('courses')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (!courseErr && courseData && courseData.length > 0) {
+        setCourses(courseData.map(mapRowToCourse));
+      }
+    } catch (err) {
+      console.error('Error fetching data from Supabase:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const savedCourses = localStorage.getItem('mos1000_courses');
-    if (savedCourses) {
-      try {
-        setCourses(JSON.parse(savedCourses));
-      } catch (e) {
-        console.error('Failed to load courses from localStorage', e);
-      }
-    }
-
-    const savedCategories = localStorage.getItem('mos1000_categories');
-    if (savedCategories) {
-      try {
-        setCategories(JSON.parse(savedCategories));
-      } catch (e) {
-        console.error('Failed to load categories from localStorage', e);
-      }
-    }
+    fetchFromSupabase();
   }, []);
 
-  const saveCoursesToStorage = (updated: Course[]) => {
-    setCourses(updated);
-    localStorage.setItem('mos1000_courses', JSON.stringify(updated));
-  };
-
-  const saveCategoriesToStorage = (updated: CategoryItem[]) => {
-    setCategories(updated);
-    localStorage.setItem('mos1000_categories', JSON.stringify(updated));
-  };
-
-  const addCourse = (newCourse: Course) => {
+  const addCourse = async (newCourse: Course) => {
+    // Optimistic local UI update
     const updated = [newCourse, ...courses];
-    saveCoursesToStorage(updated);
+    setCourses(updated);
+
+    // Sync to Supabase DB
+    try {
+      const row = mapCourseToRow(newCourse);
+      const { error } = await supabase.from('courses').upsert(row);
+      if (error) {
+        console.error('Supabase insert course error:', error);
+      }
+    } catch (e) {
+      console.error('Failed to sync course to Supabase', e);
+    }
   };
 
-  const updateCourse = (id: string, updatedCourse: Partial<Course>) => {
-    const updated = courses.map((c) => (c.id === id ? { ...c, ...updatedCourse } : c));
-    saveCoursesToStorage(updated);
+  const updateCourse = async (id: string, updatedCourse: Partial<Course>) => {
+    const target = courses.find((c) => c.id === id);
+    if (!target) return;
+    const merged = { ...target, ...updatedCourse };
+
+    // Local UI update
+    setCourses(courses.map((c) => (c.id === id ? merged : c)));
+
+    // Sync to Supabase DB
+    try {
+      const row = mapCourseToRow(merged);
+      const { error } = await supabase.from('courses').update(row).eq('id', id);
+      if (error) {
+        console.error('Supabase update course error:', error);
+      }
+    } catch (e) {
+      console.error('Failed to update course in Supabase', e);
+    }
   };
 
-  const deleteCourse = (id: string) => {
-    const updated = courses.filter((c) => c.id !== id);
-    saveCoursesToStorage(updated);
+  const deleteCourse = async (id: string) => {
+    // Local UI update
+    setCourses(courses.filter((c) => c.id !== id));
+
+    // Sync to Supabase DB
+    try {
+      const { error } = await supabase.from('courses').delete().eq('id', id);
+      if (error) {
+        console.error('Supabase delete course error:', error);
+      }
+    } catch (e) {
+      console.error('Failed to delete course from Supabase', e);
+    }
   };
 
-  const addCategory = (name: string) => {
+  const addCategory = async (name: string) => {
     const catId = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const existing = categories.find((c) => c.id === catId);
     if (existing) return;
     const newCat: CategoryItem = { id: catId, name, status: 'Hoạt động' };
-    const updated = [...categories, newCat];
-    saveCategoriesToStorage(updated);
+    
+    // Local UI update
+    setCategories([...categories, newCat]);
+
+    // Sync to Supabase DB
+    try {
+      const { error } = await supabase.from('categories').upsert({
+        id: catId,
+        name: name,
+        slug: catId,
+        description: `Danh mục ${name}`,
+      });
+      if (error) {
+        console.error('Supabase insert category error:', error);
+      }
+    } catch (e) {
+      console.error('Failed to sync category to Supabase', e);
+    }
   };
 
-  const deleteCategory = (id: string) => {
-    const updated = categories.filter((c) => c.id !== id);
-    saveCategoriesToStorage(updated);
+  const deleteCategory = async (id: string) => {
+    setCategories(categories.filter((c) => c.id !== id));
+
+    try {
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+      if (error) {
+        console.error('Supabase delete category error:', error);
+      }
+    } catch (e) {
+      console.error('Failed to delete category from Supabase', e);
+    }
   };
 
   const getCourseById = (id: string) => {
     return courses.find((c) => c.id === id || c.slug === id);
   };
 
-  const resetToDefault = () => {
+  const resetToDefault = async () => {
     setCourses(COURSES_DATA);
     setCategories(INITIAL_CATEGORIES);
-    localStorage.removeItem('mos1000_courses');
-    localStorage.removeItem('mos1000_categories');
+    await fetchFromSupabase();
   };
 
   return (
@@ -110,6 +242,7 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ child
       value={{
         courses,
         categories,
+        isLoading,
         addCourse,
         updateCourse,
         deleteCourse,
@@ -117,6 +250,7 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteCategory,
         getCourseById,
         resetToDefault,
+        refreshFromSupabase: fetchFromSupabase,
       }}
     >
       {children}
