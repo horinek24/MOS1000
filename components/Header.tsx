@@ -35,206 +35,358 @@ export const Header: React.FC = () => {
     }
   };
 
+  // Auto close mobile drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+    setDropdownOpen(false);
+  }, [pathname]);
+
   const firstName = user?.name ? user.name.split(' ').pop() : 'Học viên';
 
   return (
-    <header id="site-header" className={`site-header ${mobileOpen ? 'mobile-open' : ''}`}>
-      <div className="container">
-        <div className="header-inner">
-          {/* Logo */}
-          <Link href="/" className="brand-logo" title="MOS 1000 - Nền Tảng Luyện Thi Chứng Chỉ MOS Quốc Tế">
-            <img
-              src="/MOS1000_Assets/assets/images/logo/logo-MOS1000.png"
-              alt="MOS 1000 Logo"
-              className="brand-logo-img"
-            />
-            <span className="brand-title">MOS<span className="brand-title-accent">1000</span></span>
-          </Link>
-
-          {/* Navigation Menu */}
-          <ul className="nav-menu">
-            <li>
-              <Link href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>
-                Trang Chủ
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/courses"
-                className={`nav-link ${pathname.startsWith('/courses') ? 'active' : ''}`}
-              >
-                Khóa Học
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/my-courses"
-                className={`nav-link ${pathname === '/my-courses' ? 'active' : ''}`}
-              >
-                Khóa Học Đã Đăng Ký
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/about"
-                className={`nav-link ${pathname === '/about' ? 'active' : ''}`}
-              >
-                Giới Thiệu
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/contact"
-                className={`nav-link ${pathname === '/contact' ? 'active' : ''}`}
-              >
-                Liên Hệ
-              </Link>
-            </li>
-          </ul>
-
-          {/* Search Bar */}
-          <div className="header-search">
-            <input
-              type="text"
-              id="global-search-input"
-              placeholder="Tìm khóa học 365, Word, Excel..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-            />
-            <button
-              type="button"
-              className="search-icon"
-              onClick={handlePerformSearch}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              title="Click để tìm kiếm"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-                <circle cx="11" cy="11" r="8" />
-                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Cart, Wishlist Buttons & User Actions */}
-          <div className="header-actions">
-            {/* Wishlist Link */}
-            <Link
-              href="/wishlist"
-              className={`header-cart-link ${pathname === '/wishlist' ? 'active' : ''}`}
-              title="Khóa học yêu thích"
-            >
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" style={{ color: 'var(--color-word)' }}>
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-              <span className="cart-badge" style={{ backgroundColor: 'var(--color-word)' }}>
-                {wishlistCount}
-              </span>
+    <>
+      <header id="site-header" className={`site-header ${mobileOpen ? 'mobile-open' : ''}`}>
+        <div className="container">
+          <div className="header-inner">
+            {/* Logo */}
+            <Link href="/" className="brand-logo" title="MOS 1000 - Nền Tảng Luyện Thi Chứng Chỉ MOS Quốc Tế">
+              <img
+                src="/MOS1000_Assets/assets/images/logo/logo-MOS1000.png"
+                alt="MOS 1000 Logo"
+                className="brand-logo-img"
+              />
+              <span className="brand-title">MOS<span className="brand-title-accent">1000</span></span>
             </Link>
 
-            {/* Cart Link */}
-            <Link
-              href="/cart"
-              className={`header-cart-link ${pathname === '/cart' ? 'active' : ''}`}
-              title="Đăng ký khóa học"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-              </svg>
-              <span className="cart-badge" id="cart-badge-count">
-                {cartCount}
-              </span>
-            </Link>
-
-            {!user ? (
-              <>
-                <Link href="/login" className="btn btn-outline-navy">
-                  Đăng nhập
+            {/* Navigation Menu (Desktop) */}
+            <ul className="nav-menu">
+              <li>
+                <Link href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>
+                  Trang Chủ
                 </Link>
-                <Link href="/register" className="btn btn-primary">
-                  Đăng ký học
+              </li>
+              <li>
+                <Link
+                  href="/courses"
+                  className={`nav-link ${pathname.startsWith('/courses') ? 'active' : ''}`}
+                >
+                  Khóa Học
                 </Link>
-              </>
-            ) : (
-              <>
-                {isAdmin && (
-                  <Link href="/admin" className="btn btn-outline-cyan">
-                    Quản trị
-                  </Link>
-                )}
-                <div className="header-user-menu" style={{ position: 'relative' }}>
-                  <button
-                    className="btn btn-outline-navy header-user-btn"
-                    onClick={() => setDropdownOpen(!dropdownOpen)}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                    {firstName}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
+              </li>
+              <li>
+                <Link
+                  href="/my-courses"
+                  className={`nav-link ${pathname === '/my-courses' ? 'active' : ''}`}
+                >
+                  Khóa Học Đã Đăng Ký
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/about"
+                  className={`nav-link ${pathname === '/about' ? 'active' : ''}`}
+                >
+                  Giới Thiệu
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/contact"
+                  className={`nav-link ${pathname === '/contact' ? 'active' : ''}`}
+                >
+                  Liên Hệ
+                </Link>
+              </li>
+            </ul>
 
-                  {dropdownOpen && (
-                    <div className="header-user-dropdown open" id="user-dropdown">
-                      <div className="user-dropdown-info">
-                        <div className="user-dropdown-name">{user.name}</div>
-                        <div className="user-dropdown-role">{isAdmin ? 'Quản trị viên' : 'Học viên MOS1000'}</div>
-                      </div>
-                      <Link href="/" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        Trang chủ
-                      </Link>
-                      <Link href="/my-courses" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        🎓 Khóa học của tôi
-                      </Link>
-                      <Link href="/wishlist" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        Khóa học yêu thích ({wishlistCount})
-                      </Link>
-                      <Link href="/cart" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        Khóa học đã đăng ký ({cartCount})
-                      </Link>
-                      <Link href="/quizzes" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                        Thi thử trực tuyến
-                      </Link>
-                      {isAdmin && (
-                        <Link href="/admin" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
-                          Khu quản trị
+            {/* Search Bar (Desktop) */}
+            <div className="header-search">
+              <input
+                type="text"
+                id="global-search-input"
+                placeholder="Tìm khóa học 365, Word, Excel..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+              />
+              <button
+                type="button"
+                className="search-icon"
+                onClick={handlePerformSearch}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                title="Click để tìm kiếm"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Cart, Wishlist & User Actions (Desktop & Mobile Header Bar) */}
+            <div className="header-right-wrapper">
+              <div className="header-actions">
+                {/* Wishlist Link */}
+                <Link
+                  href="/wishlist"
+                  className={`header-cart-link ${pathname === '/wishlist' ? 'active' : ''}`}
+                  title="Khóa học yêu thích"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" style={{ color: 'var(--color-word)' }}>
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                  <span className="cart-badge" style={{ backgroundColor: 'var(--color-word)' }}>
+                    {wishlistCount}
+                  </span>
+                </Link>
+
+                {/* Cart Link */}
+                <Link
+                  href="/cart"
+                  className={`header-cart-link ${pathname === '/cart' ? 'active' : ''}`}
+                  title="Đăng ký khóa học"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  </svg>
+                  <span className="cart-badge" id="cart-badge-count">
+                    {cartCount}
+                  </span>
+                </Link>
+
+                {!user ? (
+                  <div className="header-auth-buttons">
+                    <Link href="/login" className="btn btn-outline-navy">
+                      Đăng nhập
+                    </Link>
+                    <Link href="/register" className="btn btn-primary">
+                      Đăng ký học
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="header-user-menu" style={{ position: 'relative' }}>
+                    <button
+                      className="btn btn-outline-navy header-user-btn"
+                      onClick={() => setDropdownOpen(!dropdownOpen)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                      {firstName}
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+
+                    {dropdownOpen && (
+                      <div className="header-user-dropdown open" id="user-dropdown">
+                        <div className="user-dropdown-info">
+                          <div className="user-dropdown-name">{user.name}</div>
+                          <div className="user-dropdown-role">{isAdmin ? 'Quản trị viên' : 'Học viên MOS1000'}</div>
+                        </div>
+                        <Link href="/" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                          Trang chủ
                         </Link>
-                      )}
-                      <button
-                        className="user-dropdown-item user-dropdown-logout"
-                        onClick={() => {
-                          logout();
-                          setDropdownOpen(false);
-                          router.push('/');
-                        }}
-                      >
-                        Đăng xuất
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+                        <Link href="/my-courses" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                          🎓 Khóa học của tôi
+                        </Link>
+                        <Link href="/wishlist" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                          Khóa học yêu thích ({wishlistCount})
+                        </Link>
+                        <Link href="/cart" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                          Khóa học đã đăng ký ({cartCount})
+                        </Link>
+                        <Link href="/quizzes" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                          Thi thử trực tuyến
+                        </Link>
+                        {isAdmin && (
+                          <Link href="/admin" className="user-dropdown-item" onClick={() => setDropdownOpen(false)}>
+                            Khu quản trị
+                          </Link>
+                        )}
+                        <button
+                          className="user-dropdown-item user-dropdown-logout"
+                          onClick={() => {
+                            logout();
+                            setDropdownOpen(false);
+                            router.push('/');
+                          }}
+                        >
+                          Đăng xuất
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
-          {/* Mobile Toggle Button */}
-          <button
-            className="mobile-toggle"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
+              {/* Mobile Hamburger Toggle */}
+              <button
+                className="mobile-toggle"
+                onClick={() => setMobileOpen(!mobileOpen)}
+                aria-label="Toggle menu"
+              >
+                {mobileOpen ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </header>
+
+        {/* Mobile Navigation Drawer */}
+        {mobileOpen && (
+          <div className="mobile-nav-drawer open">
+            <div className="mobile-drawer-inner">
+              {/* Mobile Search */}
+              <div className="mobile-search-box">
+                <input
+                  type="text"
+                  placeholder="Tìm khóa học Word, Excel, MOS..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handlePerformSearch();
+                      setMobileOpen(false);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    handlePerformSearch();
+                    setMobileOpen(false);
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Mobile Quick Stats / Actions */}
+              <div className="mobile-quick-actions">
+                <Link
+                  href="/wishlist"
+                  className="mobile-quick-btn"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" style={{ color: 'var(--color-word)' }}>
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                  Yêu thích ({wishlistCount})
+                </Link>
+                <Link
+                  href="/cart"
+                  className="mobile-quick-btn primary"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  </svg>
+                  Giỏ hàng ({cartCount})
+                </Link>
+              </div>
+
+              {/* Navigation Links */}
+              <ul className="mobile-nav-list">
+                <li>
+                  <Link href="/" onClick={() => setMobileOpen(false)} className={pathname === '/' ? 'active' : ''}>
+                    🏠 Trang Chủ
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/courses" onClick={() => setMobileOpen(false)} className={pathname.startsWith('/courses') ? 'active' : ''}>
+                    📚 Tất Cả Khóa Học
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/my-courses" onClick={() => setMobileOpen(false)} className={pathname === '/my-courses' ? 'active' : ''}>
+                    🎓 Khóa Học Của Tôi
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/quizzes" onClick={() => setMobileOpen(false)} className={pathname === '/quizzes' ? 'active' : ''}>
+                    📝 Thi Thử Trực Tuyến
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/about" onClick={() => setMobileOpen(false)} className={pathname === '/about' ? 'active' : ''}>
+                    ℹ️ Giới Thiệu
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" onClick={() => setMobileOpen(false)} className={pathname === '/contact' ? 'active' : ''}>
+                    📞 Liên Hệ
+                  </Link>
+                </li>
+              </ul>
+
+              {/* User Account / Auth Section */}
+              <div className="mobile-auth-section">
+                {!user ? (
+                  <div className="mobile-auth-grid">
+                    <Link href="/login" className="btn btn-outline-navy" onClick={() => setMobileOpen(false)}>
+                      Đăng nhập
+                    </Link>
+                    <Link href="/register" className="btn btn-primary" onClick={() => setMobileOpen(false)}>
+                      Đăng ký học
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="mobile-user-card">
+                    <div className="mobile-user-header">
+                      <div className="mobile-user-avatar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                      </div>
+                      <div className="mobile-user-details">
+                        <div className="mobile-user-name">{user.name}</div>
+                        <div className="mobile-user-role">{isAdmin ? 'Quản trị viên' : user.email}</div>
+                      </div>
+                    </div>
+                    {isAdmin && (
+                      <Link href="/admin" className="btn btn-outline-cyan mobile-user-action" onClick={() => setMobileOpen(false)}>
+                        Trang quản trị viên
+                      </Link>
+                    )}
+                    <button
+                      className="btn btn-outline-navy mobile-user-logout"
+                      onClick={() => {
+                        logout();
+                        setMobileOpen(false);
+                        router.push('/');
+                      }}
+                    >
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </header>
+      {mobileOpen && (
+        <div className="mobile-backdrop" onClick={() => setMobileOpen(false)} />
+      )}
+    </>
   );
 };
+

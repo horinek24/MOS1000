@@ -163,57 +163,46 @@ export default function HomePage() {
       </section>
 
       {/* Live Supabase Orders & Registration Activity Bar */}
-      <section style={{ backgroundColor: '#f8fafc', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', padding: '1.75rem 0' }}>
+      <section className="live-order-section">
         <div className="container">
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: '2rem', alignItems: 'center' }}>
+          <div className="live-order-bar">
             {/* Stat Counters */}
-            <div style={{ backgroundColor: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem 1.5rem', boxShadow: 'var(--shadow-sm)' }}>
-              <div style={{ fontSize: '0.82rem', color: 'var(--color-primary)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+            <div className="live-order-stats-card">
+              <div className="live-order-stats-badge">
                 ⚡ Cập nhật theo thời gian thực (Supabase Live)
               </div>
-              <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+              <div className="live-order-stats-row">
                 <div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-dark)' }}>{totalStudentsCombined.toLocaleString('vi-VN')}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>Học viên đã đăng ký</div>
+                  <div className="live-stat-num">{totalStudentsCombined.toLocaleString('vi-VN')}</div>
+                  <div className="live-stat-label">Học viên đã đăng ký</div>
                 </div>
-                <div style={{ width: '1px', height: '36px', backgroundColor: 'var(--color-border)' }} />
+                <div className="live-stat-divider" />
                 <div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-primary)' }}>{totalOrdersCount}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>Đơn đăng ký mới</div>
+                  <div className="live-stat-num primary">{totalOrdersCount}</div>
+                  <div className="live-stat-label">Đơn đăng ký mới</div>
                 </div>
               </div>
             </div>
 
             {/* Recent Live Orders Activity Feed */}
-            <div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }} />
+            <div className="live-order-feed">
+              <div className="live-feed-title">
+                <span className="live-feed-dot" />
                 Hoạt động đăng ký vừa diễn ra từ học viên:
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+              <div className="live-activity-scroll">
                 {recentOrders.length > 0 ? (
                   recentOrders.map((order) => {
                     const firstCourseTitle = Array.isArray(order.items) && order.items.length > 0 ? (order.items[0].course_title || order.items[0].title || 'Khóa học MOS') : 'Khóa học MOS';
                     return (
                       <div
                         key={order.id}
-                        style={{
-                          backgroundColor: '#ffffff',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: 'var(--radius-md)',
-                          padding: '0.65rem 1rem',
-                          fontSize: '0.82rem',
-                          whiteSpace: 'nowrap',
-                          boxShadow: 'var(--shadow-sm)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                        }}
+                        className="live-activity-chip"
                       >
                         <span>🎉</span>
                         <div>
-                          <strong style={{ color: '#0f172a' }}>{order.customer_name}</strong> vừa đăng ký <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{firstCourseTitle}</span>
+                          <strong className="live-chip-name">{order.customer_name}</strong> vừa đăng ký <span className="live-chip-course">{firstCourseTitle}</span>
                         </div>
                       </div>
                     );
